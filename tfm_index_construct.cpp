@@ -40,7 +40,7 @@
 #include "tfm_index.hpp"
 
 extern "C" {
-#include "gsa/gsacak.h"
+#include "gsacak.h"
 #include "utils.h"
 }
 
@@ -191,7 +191,7 @@ int main(int argc, char **argv) {
         cerr << "At least 2 parameters expected" << endl;
         return 1;
     }
-    
+
     infile = argv[argc - 2];
     outfile = argv[argc - 1];
 
@@ -202,7 +202,7 @@ int main(int argc, char **argv) {
     memory_monitor::start();
     {
         cache_config config(true, "./", util::basename(infile));
-        size_t psize, sigma = 0; 
+        size_t psize, sigma = 0;
         uint32_t *parse = load_parse(infile, psize);
         sigma = compute_sigma(parse, psize);
         compute_BWT(parse, psize+1, sigma, infile + ".bwt");

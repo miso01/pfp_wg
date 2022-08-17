@@ -1,7 +1,7 @@
 /* **************************************************************************
  * pfwg.cpp
  * Output the tunneled Wheeler graph computed using the prefix-free parsing technique
- *  
+ *
  * Usage:
  *   pfwg.x -h
  * for usage info
@@ -27,7 +27,7 @@
 #include <map>
 #include "tfm_index.hpp"
 extern "C" {
-#include "gsa/gsacak.h"
+#include "gsacak.h"
 #include "utils.h"
 }
 
@@ -39,9 +39,9 @@ using namespace sdsl;
 // struct containing command line parameters and other globals
 struct Args {
     char *basename;
-    string parseExt =  EXTPARSE;    // extension final parse file  
-    string dictExt =   EXTDICT;     // extension dictionary file  
-    int w = 10;            // sliding window size and its default 
+    string parseExt =  EXTPARSE;    // extension final parse file
+    string dictExt =   EXTDICT;     // extension dictionary file
+    int w = 10;            // sliding window size and its default
 };
 
 struct Dict {
@@ -60,7 +60,7 @@ static void fwrite_chars_same_suffix(vector<uint32_t> &id2merge,  vector<uint8_t
 // instances of this class are stored to a heap to handle the hard bwts
 struct SeqId {
     uint32_t id;       // lex. id of the dictionary word to which the suffix belongs
-    int remaining;     // remaining copies of the suffix to be considered  
+    int remaining;     // remaining copies of the suffix to be considered
     uint32_t *bwtpos;  // list of bwt positions of this dictionary word
     uint8_t char2write;// char to be written (is the one preceeding the suffix)
 
@@ -69,7 +69,7 @@ struct SeqId {
         char2write = c;
     }
 
-    // advance to the next bwt position, return false if there are no more positions 
+    // advance to the next bwt position, return false if there are no more positions
     bool next() {
         remaining--;
         bwtpos += 1;
@@ -99,15 +99,15 @@ void write_bitvector(FILE *f, bool bit, uint8_t &cnt, uint8_t &buffer, bool hard
 
 /* *******************************************************************
  * Computation of the final BWT
- * 
- * istart[] and islist[] are used together. For each dictionary word i 
+ *
+ * istart[] and islist[] are used together. For each dictionary word i
  * (considered in lexicographic order) for k=istart[i]...istart[i+1]-1
- * ilist[k] contains the ordered positions in BWT(P) containing word i 
+ * ilist[k] contains the ordered positions in BWT(P) containing word i
  * ******************************************************************* */
-void bwt(Args &arg, uint8_t *d, long dsize, uint64_t *end_to_phrase, // dictionary and its size  
-         uint32_t *ilist, tfm_index<> &tfmp, // ilist, last and their size 
+void bwt(Args &arg, uint8_t *d, long dsize, uint64_t *end_to_phrase, // dictionary and its size
+         uint32_t *ilist, tfm_index<> &tfmp, // ilist, last and their size
          long dwords, uint_t *sa, int_t *lcp) { // starting point in ilist for each word and # words
-    
+
     // set d[0]==0 as this is the EOF char in the final BWT
     assert(d[0]==Dollar);
     d[0] = 0;
@@ -125,13 +125,13 @@ void bwt(Args &arg, uint8_t *d, long dsize, uint64_t *end_to_phrase, // dictiona
     uint32_t seqid;
     for(long i=dwords+arg.w+1; i < dsize; i = next) {
         // we are considering d[sa[i]....]
-        next = i+1;  // prepare for next iteration  
+        next = i+1;  // prepare for next iteration
         // compute length of this suffix and sequence it belongs
         int_t suffixLen = getlen(sa[i], eos, dwords, &seqid);
         //cout << suffixLen << " " << seqid << endl;
         // ignore suffixes of lenght <= w
         if(suffixLen <= arg.w) continue;
-        // ----- simple case: the suffix is a full word 
+        // ----- simple case: the suffix is a full word
         if(sa[i] == 0 || d[sa[i]-1] == EndOfWord) {
             full_words++;
             uint32_t start = tfmp.C[seqid+1], end = tfmp.C[seqid+2];
@@ -150,11 +150,11 @@ void bwt(Args &arg, uint8_t *d, long dsize, uint64_t *end_to_phrase, // dictiona
                     }
                 }
             }
-            continue; // proceed with next i 
+            continue; // proceed with next i
         } else {
         // ----- hard case: there can be a group of equal suffixes starting at i
-        // save seqid and the corresponding char 
-        vector<uint32_t> id2merge(1, seqid); 
+        // save seqid and the corresponding char
+        vector<uint32_t> id2merge(1, seqid);
         vector<uint8_t> char2write(1,d[sa[i]-1]);
         while(next < dsize && lcp[next] >= suffixLen) {
             assert(lcp[next]==suffixLen);  // the lcp cannot be greater than suffixLen
@@ -168,7 +168,7 @@ void bwt(Args &arg, uint8_t *d, long dsize, uint64_t *end_to_phrase, // dictiona
             }
             else break;
         }
-        // output to fbwt the bwt chars corresponding to the current dictionary suffix, and, if requested, some SA values 
+        // output to fbwt the bwt chars corresponding to the current dictionary suffix, and, if requested, some SA values
         fwrite_chars_same_suffix(id2merge,char2write,tfmp,ilist,fbwt,easy_bwts,hard_bwts);
         }
     }
@@ -176,13 +176,13 @@ void bwt(Args &arg, uint8_t *d, long dsize, uint64_t *end_to_phrase, // dictiona
     cout << "Full words: " << full_words << endl;
     cout << "Easy bwt chars: " << easy_bwts << endl;
     cout << "Hard bwt chars: " << hard_bwts << endl;
-    cout << "Generating the final BWT took " << difftime(time(NULL),start) << " wall clock seconds\n";    
+    cout << "Generating the final BWT took " << difftime(time(NULL),start) << " wall clock seconds\n";
     fclose(fbwt);
 }
 
-void din(Args &arg, uint8_t *d, long dsize, // dictionary and its size  
+void din(Args &arg, uint8_t *d, long dsize, // dictionary and its size
          tfm_index<> &tfmp, long dwords, uint_t *sa, int_t *lcp) { // starting point in ilist for each word and # words
-    
+
     // derive eos from sa. for i=0...dwords-1, eos[i] is the eos position of string i in d
     uint_t *eos = sa+1;
     for (int i = 0; i < dwords-1;i++) assert(eos[i] < eos[i+1]);
@@ -196,23 +196,23 @@ void din(Args &arg, uint8_t *d, long dsize, // dictionary and its size
     uint8_t cnt = 0, buffer = 0;
     for(long i=dwords+arg.w+1; i < dsize; i = next) {
         // we are considering d[sa[i]....]
-        next = i+1;  // prepare for next iteration  
+        next = i+1;  // prepare for next iteration
         // compute length of this suffix and sequence it belongs
         int_t suffixLen = getlen(sa[i], eos, dwords, &seqid);
         //cout << suffixLen << " " << seqid << endl;
         // ignore suffixes of lenght <= w
         if(suffixLen <= arg.w) continue;
-        // ----- simple case: the suffix is a full word 
+        // ----- simple case: the suffix is a full word
         if(sa[i] == 0 || d[sa[i]-1] == EndOfWord) {
             uint32_t start = tfmp.C[seqid+1], end = tfmp.C[seqid+2];
             assert(tfmp.din[start] == 1);
             for (uint32_t j = start; j < end; j++) {
                 write_bitvector(fdin, tfmp.din[j], cnt, buffer);
             }
-            continue; // proceed with next i 
+            continue; // proceed with next i
         } else {
             // ----- hard case: there can be a group of equal suffixes starting at i
-            // save seqid and the corresponding char 
+            // save seqid and the corresponding char
             int bits_to_write = tfmp.C[seqid+2] - tfmp.C[seqid+1];
             while(next < dsize && lcp[next] >= suffixLen) {
                 assert(lcp[next]==suffixLen);  // the lcp cannot be greater than suffixLen
@@ -232,9 +232,9 @@ void din(Args &arg, uint8_t *d, long dsize, // dictionary and its size
     fclose(fdin);
 }
 
-void dout(Args &arg, uint8_t *d, long dsize, // dictionary and its size  
+void dout(Args &arg, uint8_t *d, long dsize, // dictionary and its size
          tfm_index<> &tfmp, long dwords, uint_t *sa, int_t *lcp) { // starting point in ilist for each word and # words
-    
+
     // derive eos from sa. for i=0...dwords-1, eos[i] is the eos position of string i in d
     uint_t *eos = sa+1;
     for (int i = 0; i < dwords-1;i++) assert(eos[i] < eos[i+1]);
@@ -248,13 +248,13 @@ void dout(Args &arg, uint8_t *d, long dsize, // dictionary and its size
     uint8_t cnt = 0, buffer = 0;
     for(long i=dwords+arg.w+1; i < dsize; i = next) {
         // we are considering d[sa[i]....]
-        next = i+1;  // prepare for next iteration  
+        next = i+1;  // prepare for next iteration
         // compute length of this suffix and sequence it belongs
         int_t suffixLen = getlen(sa[i], eos, dwords, &seqid);
         //cout << suffixLen << " " << seqid << endl;
         // ignore suffixes of lenght <= w
         if(suffixLen <= arg.w) continue;
-        // ----- simple case: the suffix is a full word 
+        // ----- simple case: the suffix is a full word
         if(sa[i] == 0 || d[sa[i]-1] == EndOfWord) {
             uint32_t start = tfmp.C[seqid+1], end = tfmp.C[seqid+2];
             assert(tfmp.din[start] == 1);
@@ -268,10 +268,10 @@ void dout(Args &arg, uint8_t *d, long dsize, // dictionary and its size
                     }
                 }
             }
-            continue; // proceed with next i 
+            continue; // proceed with next i
         } else {
             // ----- hard case: there can be a group of equal suffixes starting at i
-            // save seqid and the corresponding char 
+            // save seqid and the corresponding char
             int bits_to_write = tfmp.C[seqid+2] - tfmp.C[seqid+1];
             while(next < dsize && lcp[next] >= suffixLen) {
                 assert(lcp[next]==suffixLen);  // the lcp cannot be greater than suffixLen
@@ -324,8 +324,8 @@ void parseArgs( int argc, char** argv, Args& arg ) {
         }
     }
     // the only input parameter is the file name
-    arg.basename = NULL; 
-    if (argc == optind+1) 
+    arg.basename = NULL;
+    if (argc == optind+1)
         arg.basename = argv[optind];
     else {
         cout << "Invalid number of arguments" << endl;
@@ -390,14 +390,14 @@ void generate_ilist(uint32_t *ilist, tfm_index<> &tfmp, uint64_t dwords) {
 
 
 int main(int argc, char** argv) {
-    time_t start = time(NULL);  
+    time_t start = time(NULL);
 
     // translate command line parameters
     Args arg;
     parseArgs(argc, argv, arg);
-    // read dictionary file 
+    // read dictionary file
     struct Dict dict = read_dictionary(arg.basename);
-     
+
     // read the tunneled WG of the parse
     char *name;
     int e = asprintf(&name, "%s.%s", arg.basename, "tunnel");
@@ -408,7 +408,7 @@ int main(int argc, char** argv) {
     uint32_t *ilist = new uint32_t[tfmp.L.size()-1];
     generate_ilist(ilist, tfmp, dict.dwords);
 
-    // compute SA and BWT of D and do some checking on them 
+    // compute SA and BWT of D and do some checking on them
     uint_t *sa; int_t *lcp;
     compute_dict_bwt_lcp(dict.d, dict.dsize, dict.dwords, arg.w, &sa, &lcp);
 
@@ -416,11 +416,11 @@ int main(int argc, char** argv) {
     din(arg,dict.d,dict.dsize,tfmp,dict.dwords,sa,lcp);
     dout(arg,dict.d,dict.dsize,tfmp,dict.dwords,sa,lcp);
     delete[] ilist;
-    delete[] dict.d;  
-    delete[] dict.end;  
+    delete[] dict.d;
+    delete[] dict.end;
     delete[] lcp;
     delete[] sa;
-    cout << "==== Elapsed time: " << difftime(time(NULL),start) << " wall clock seconds\n";      
+    cout << "==== Elapsed time: " << difftime(time(NULL),start) << " wall clock seconds\n";
     return 0;
 }
 
@@ -438,12 +438,12 @@ static long binsearch(uint_t x, uint_t a[], long n) {
         else lo = mid+1;
     }
     assert(((hi==0) || x>a[hi-1]) && x< a[hi]);
-    return hi; 
+    return hi;
 }
 
 
 // return the length of the suffix starting in position p.
-// also write to seqid the id of the sequence containing that suffix 
+// also write to seqid the id of the sequence containing that suffix
 // n is the # of distinct words in the dictionary, hence the length of eos[]
 static int_t getlen(uint_t p, uint_t eos[], long n, uint32_t *seqid) {
     assert(p<eos[n-1]);
@@ -455,12 +455,12 @@ static int_t getlen(uint_t p, uint_t eos[], long n, uint32_t *seqid) {
 // compute the SA and LCP array for the set of (unique) dictionary words
 // using gSACA-K. Also do some checking based on the number and order of the special symbols
 // d[0..dsize-1] is the dictionary consisting of the concatenation of dictionary words
-// in lex order with EndOfWord (0x1) at the end of each word and 
+// in lex order with EndOfWord (0x1) at the end of each word and
 // d[size-1] = EndOfDict (0x0) at the very end. It is d[0]=Dollar (0x2)
 // since the first words starts with $. There is another word somewhere
 // ending with Dollar^wEndOfWord (it is the last word in the parsing,
-// but its lex rank is unknown).  
-static void compute_dict_bwt_lcp(uint8_t *d, long dsize,long dwords, int w, 
+// but its lex rank is unknown).
+static void compute_dict_bwt_lcp(uint8_t *d, long dsize,long dwords, int w,
                           uint_t **sap, int_t **lcpp) // output parameters
 {
     uint_t *sa = new uint_t[dsize];
@@ -470,26 +470,26 @@ static void compute_dict_bwt_lcp(uint8_t *d, long dsize,long dwords, int w,
     cout  << "Each SA entry: " << sizeof(*sa) << " bytes\n";
     cout  << "Each LCP entry: " << sizeof(*lcp) << " bytes\n";
 
-    cout << "Computing SA and LCP of dictionary" << endl; 
+    cout << "Computing SA and LCP of dictionary" << endl;
     time_t  start = time(NULL);
     gsacak(d,sa,lcp,NULL,dsize);
-    cout << "Computing SA/LCP took " << difftime(time(NULL),start) << " wall clock seconds\n";  
+    cout << "Computing SA/LCP took " << difftime(time(NULL),start) << " wall clock seconds\n";
     // ------ do some checking on the sa
     assert(d[dsize-1]==EndOfDict);
-    assert(sa[0]==(unsigned long)dsize-1);// sa[0] is the EndOfDict symbol 
-    for(long i=0;i<dwords;i++) assert(d[sa[i+1]]==EndOfWord); // there are dwords EndOfWord symbols 
-    // EndOfWord symbols are in position order, so the last is d[dsize-2]    
-    assert(sa[dwords]==(unsigned long)dsize-2);  
-    // there are wsize+1 $ symbols: 
+    assert(sa[0]==(unsigned long)dsize-1);// sa[0] is the EndOfDict symbol
+    for(long i=0;i<dwords;i++) assert(d[sa[i+1]]==EndOfWord); // there are dwords EndOfWord symbols
+    // EndOfWord symbols are in position order, so the last is d[dsize-2]
+    assert(sa[dwords]==(unsigned long)dsize-2);
+    // there are wsize+1 $ symbols:
     // one at the beginning of the first word, wsize at the end of the last word
-    for(long i=0;i<=w;i++) assert(d[sa[i+dwords+1]]==Dollar);         
-    // in sa[dwords+w+1] we have the first word in the parsing since that $ is the lex. larger  
+    for(long i=0;i<=w;i++) assert(d[sa[i+dwords+1]]==Dollar);
+    // in sa[dwords+w+1] we have the first word in the parsing since that $ is the lex. larger
     assert(d[0]==Dollar);
     assert(sa[dwords+w+1]==0);
     assert(d[sa[dwords+w+2]]>Dollar);  // end of Dollar chars in the first column
-    assert(lcp[dwords+w+2]==0); 
+    assert(lcp[dwords+w+2]==0);
     // copy sa and lcp address
-    *sap = sa;  *lcpp = lcp;  
+    *sap = sa;  *lcpp = lcp;
 }
 
 
@@ -509,10 +509,10 @@ static void fwrite_chars_same_suffix(vector<uint32_t> &id2merge,  vector<uint8_t
             for(uint64_t j = tfmp.C[s]; j < tfmp.C[s+1]; j++) {
                 if(fputc(char2write[0],fbwt) == EOF) die("L write error 1");
             }
-            easy_bwts +=  tfmp.C[s+1] - tfmp.C[s]; 
+            easy_bwts +=  tfmp.C[s+1] - tfmp.C[s];
         }
     } else {
-        // many words, many chars...     
+        // many words, many chars...
         vector<SeqId> heap; // create heap
         for(size_t i=0; i<numwords; i++) {
             uint32_t s = id2merge[i]+1;
@@ -525,7 +525,7 @@ static void fwrite_chars_same_suffix(vector<uint32_t> &id2merge,  vector<uint8_t
             SeqId s = heap.front();
             if(fputc(s.char2write,fbwt)==EOF) die("L write error 2");
             hard_bwts += 1;
-            // remove top 
+            // remove top
             pop_heap(heap.begin(),heap.end());
             heap.pop_back();
             // if remaining positions, reinsert to heap

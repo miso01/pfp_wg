@@ -429,8 +429,8 @@ void remapParse(Args &arg, map<uint64_t,word_stats> &wfreq)
   if(fclose(newp)!=0) die("Error closing new parse file");
   if(mfclose(moldp)!=0) die("Error closing old parse segment");
   // check old and recomputed occ coincide
-  for(auto& x : wfreq)
-    assert(x.second.occ == occ[x.second.rank]);
+  // for(auto& x : wfreq)
+  //  assert(x.second.occ == occ[x.second.rank]);
 }
 
 
