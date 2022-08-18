@@ -1,0 +1,16 @@
+---
+BasedOnStyle: LLVM
+IndentWidth: 4
+ColumnLimit: 80
+
+DerivePointerAlignment: false
+PointerAlignment: Right
+
+# AlignAfterOpenBracket: AlwaysBreak
+---
+Language: Cpp
+# Options for C++
+
+# use "// clang-format off" and "// clang-format on" to toggle formating
+# run with: clang-format -i <file.cpp/.c>
+# `clang-format -style=llvm -dump-config` to check configuration of llvm
