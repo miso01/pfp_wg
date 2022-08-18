@@ -1,31 +1,3 @@
-/*
- * tfm_index_construct.cpp for BWT Tunneling
- * Copyright (c) 2020 Uwe Baier All Rights Reserved.
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
-//ORIGINALLY COMES FROM:
-/*
- * tfm_index_construct.cpp for Edge minimization in de Bruijn graphs
- * Copyright (c) 2019 Uwe Baier, Pascal Weber All Rights Reserved.
- */
-
 #include <iostream>
 #include <map>
 #include <deque>
@@ -180,51 +152,21 @@ size_t compute_sigma(const uint32_t* parse, const size_t psize) {
 
 
 int main(int argc, char **argv) {
-    //set default configuration
-    bool informative = false; //informative mode
-    string infile = "Makefile";
-    string outfile = "Makefile.tfm";
+    if (argc < 3) { printUsage(argv); return 1; }
 
-    //check parameters
-    if (argc < 3) {
-        printUsage(argv);
-        cerr << "At least 2 parameters expected" << endl;
-        return 1;
-    }
-
-    infile = argv[argc - 2];
-    outfile = argv[argc - 1];
+    string infile = argv[argc - 2];
+    string outfile = argv[argc - 1];
 
     //construct tunneled fm index
-    int64_t fm_size, tfm_size;
-    int64_t min_k, min_edges;
     tfm_index<> tfm;
-    memory_monitor::start();
-    {
-        cache_config config(true, "./", util::basename(infile));
-        size_t psize, sigma = 0;
-        uint32_t *parse = load_parse(infile, psize);
-        sigma = compute_sigma(parse, psize);
-        compute_BWT(parse, psize+1, sigma, infile + ".bwt");
-        delete parse;
-        construct_tfm_index(tfm, infile + ".bwt", psize+1, config);
-        tfm_size = size_in_bytes(tfm);
-    }
-    memory_monitor::stop();
 
-    if (informative) {
-        cout << "input_length\t" << tfm.size() << endl;
-        cout << "tfm_length\t" << tfm.L.size() << endl;
-        cout << "fm_index_size\t" << fm_size << endl;
-        cout << "tfm_index_size\t" << tfm_size << endl;
-        cout << "min_dbg_k\t" << min_k << endl;
-        cout << "min_dbg_edges\t" << min_edges << endl;
-        //cout << "L:  " << tfm.L << endl;
-        //cout << "C:  " << tfm.C  << endl;
-        //cout << "Din:  " << tfm.din << endl;
-        //cout << "Dout: " << tfm.dout << endl;
-        //memory_monitor::write_memory_log<leet_format>(cout);
-    }
+    cache_config config(true, "./", util::basename(infile));
+    size_t psize;
+    uint32_t *parse = load_parse(infile, psize);
+    size_t sigma = compute_sigma(parse, psize);
+    compute_BWT(parse, psize+1, sigma, infile + ".bwt");
+    delete parse;
+    construct_tfm_index(tfm, infile + ".bwt", psize+1, config);
 
     store_to_file(tfm, outfile);
     return 0;

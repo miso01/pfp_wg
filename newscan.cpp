@@ -211,17 +211,10 @@ struct KR_window {
   ~KR_window() {
     delete[] window;
   }
-
 };
 // -----------------------------------------------------------
 
 static void save_update_word(string& w, unsigned int minsize,map<uint64_t,word_stats>&  freq, FILE *tmp_parse_file, FILE *last, FILE *sa, uint64_t &pos);
-
-#ifndef NOTHREADS
-#include "newscan.hpp"
-#endif
-
-
 
 // compute 64-bit KR hash of a string
 // to avoid overflows in 64 bit aritmethic the prime is taken < 2**55
@@ -249,9 +242,6 @@ static void save_update_word(string& w, unsigned int minsize,map<uint64_t,word_s
   uint64_t hash = kr_hash(w);
   if(fwrite(&hash,sizeof(hash),1,tmp_parse_file)!=1) die("parse write error");
 
-#ifndef NOTHREADS
-  xpthread_mutex_lock(&map_mutex,__LINE__,__FILE__);
-#endif
   // update frequency table for current hash
   if(freq.find(hash)==freq.end()) {
       freq[hash].occ = 1; // new hash
@@ -270,9 +260,6 @@ static void save_update_word(string& w, unsigned int minsize,map<uint64_t,word_s
         exit(1);
       }
   }
-#ifndef NOTHREADS
-  xpthread_mutex_unlock(&map_mutex,__LINE__,__FILE__);
-#endif
   // output char w+1 from the end
   if(fputc(w[w.size()- minsize-1],last)==EOF) die("Error writing to .last file");
   // compute ending position +1 of current word and write it to sa file
@@ -441,9 +428,6 @@ void print_help(char** argv, Args &args) {
   cout << "  Options: " << endl
         << "\t-w W\tsliding window size, def. " << args.w << endl
         << "\t-p M\tmodulo for defining phrases, def. " << args.p << endl
-        #ifndef NOTHREADS
-        << "\t-t M\tnumber of helper threads, def. none " << endl
-        #endif
         << "\t-h  \tshow help and exit" << endl
         << "\t-s  \tcompute suffix array info" << endl;
   #ifdef GZSTREAM
@@ -506,17 +490,10 @@ void parseArgs( int argc, char** argv, Args& arg ) {
      cout << "Modulus must be at leas 10\n";
      exit(1);
    }
-   #ifdef NOTHREADS
    if(arg.th!=0) {
      cout << "The NT version cannot use threads\n";
      exit(1);
    }
-   #else
-   if(arg.th<0) {
-     cout << "Number of threads cannot be negative\n";
-     exit(1);
-   }
-   #endif
 }
 
 
@@ -530,86 +507,38 @@ bool is_gzipped(std::string fname) {
 }
 
 
-int main(int argc, char** argv)
-{
-  // translate command line parameters
+int main(int argc, char** argv) {
   Args arg;
   parseArgs(argc, argv, arg);
-  cout << "Windows size: " << arg.w << endl;
-  cout << "Stop word modulus: " << arg.p << endl;
 
-  // measure elapsed wall clock time
-  time_t start_main = time(NULL);
-  time_t start_wc = start_main;
-  // init sorted map counting the number of occurrences of each word
   map<uint64_t,word_stats> wordFreq;
-  uint64_t totChar;
 
-  // ------------ parsing input file
-  // force threads=0 if gzipped
-  if (is_gzipped(arg.inputFileName)) {
-      cerr << "input is gzipped, forcing single thread!" << endl;
-      arg.th = 0;
-  }
-  try {
-      if(arg.th==0)
-        totChar = process_file(arg,wordFreq);
-      else {
-        #ifdef NOTHREADS
-        cerr << "Sorry, this is the no-threads executable and you requested " << arg.th << " threads\n";
-        exit(EXIT_FAILURE);
-        #else
-        if (arg.is_fasta) totChar = mt_process_file_fasta(arg, wordFreq);
-        else totChar = mt_process_file(arg,wordFreq);
-        #endif
-      }
-  }
+  try { process_file(arg, wordFreq); }
   catch(const std::bad_alloc&) {
       cout << "Out of memory (parsing phase)... emergency exit\n";
       die("bad alloc exception");
   }
-  // first report
+
   uint64_t totDWord = wordFreq.size();
-  cout << "Total input symbols: " << totChar << endl;
-  cout << "Found " << totDWord << " distinct words" <<endl;
-  cout << "Parsing took: " << difftime(time(NULL),start_wc) << " wall clock seconds\n";
-  // check # distinct words
-  if(totDWord>MAX_DISTINCT_WORDS) {
+  if(totDWord > MAX_DISTINCT_WORDS) {
     cerr << "Emergency exit! The number of distinc words (" << totDWord << ")\n";
     cerr << "is larger than the current limit (" << MAX_DISTINCT_WORDS << ")\n";
     exit(1);
   }
 
-  // -------------- second pass
-  start_wc = time(NULL);
   // create array of dictionary words
   vector<const string *> dictArray;
   dictArray.reserve(totDWord);
-  // fill array
-  uint64_t sumLen = 0;
-  uint64_t totWord = 0;
-  for (auto& x: wordFreq) {
-    sumLen += x.second.str.size();
-    totWord += x.second.occ;
-    dictArray.push_back(&x.second.str);
-  }
+  for (auto& x: wordFreq) { dictArray.push_back(&x.second.str); }
   assert(dictArray.size()==totDWord);
-  cout << "Sum of lenghts of dictionary words: " << sumLen << endl;
-  cout << "Total number of words: " << totWord << endl;
-  // sort dictionary
-  sort(dictArray.begin(), dictArray.end(),pstringCompare);
+  sort(dictArray.begin(), dictArray.end(), pstringCompare);
   // write plain dictionary and occ file, also compute rank for each hash
-  cout << "Writing plain dictionary and occ file\n";
   writeDictOcc(arg, wordFreq, dictArray);
   dictArray.clear(); // reclaim memory
-  cout << "Dictionary construction took: " << difftime(time(NULL),start_wc) << " wall clock seconds\n";
 
   // remap parse file
-  start_wc = time(NULL);
-  cout << "Generating remapped parse file\n";
   remapParse(arg, wordFreq);
-  cout << "Remapping parse file took: " << difftime(time(NULL),start_wc) << " wall clock seconds\n";
-  cout << "==== Elapsed time: " << difftime(time(NULL),start_main) << " wall clock seconds\n";
+
   return 0;
 }
 
