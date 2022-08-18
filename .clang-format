@@ -6,7 +6,7 @@ ColumnLimit: 80
 DerivePointerAlignment: false
 PointerAlignment: Right
 
-# AlignAfterOpenBracket: AlwaysBreak
+AlignAfterOpenBracket: BlockIndent
 ---
 Language: Cpp
 # Options for C++

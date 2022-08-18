@@ -115,8 +115,9 @@ struct KR_window {
     uint64_t addchar(int c) {
         int k = tot_char++ % wsize;
         // complex expression to avoid negative numbers
-        hash += (prime - (window[k] * asize_pot) %
-                             prime);       // remove window[k] contribution
+        hash +=
+            (prime - (window[k] * asize_pot) % prime
+            );                             // remove window[k] contribution
         hash = (asize * hash + c) % prime; //  add char i
         window[k] = c;
         // cerr << get_window() << " ~~ " << window << " --> " << hash << endl;
@@ -135,10 +136,10 @@ struct KR_window {
 };
 // -----------------------------------------------------------
 
-static void save_update_word(string &w, unsigned int minsize,
-                             map<uint64_t, word_stats> &freq,
-                             FILE *tmp_parse_file, FILE *last, FILE *sa,
-                             uint64_t &pos);
+static void save_update_word(
+    string &w, unsigned int minsize, map<uint64_t, word_stats> &freq,
+    FILE *tmp_parse_file, FILE *last, FILE *sa, uint64_t &pos
+);
 
 // compute 64-bit KR hash of a string
 // to avoid overflows in 64 bit aritmethic the prime is taken < 2**55
@@ -157,10 +158,10 @@ uint64_t kr_hash(string s) {
 
 // save current word in the freq map and update it leaving only the
 // last minsize chars which is the overlap with next word
-static void save_update_word(string &w, unsigned int minsize,
-                             map<uint64_t, word_stats> &freq,
-                             FILE *tmp_parse_file, FILE *last, FILE *sa,
-                             uint64_t &pos) {
+static void save_update_word(
+    string &w, unsigned int minsize, map<uint64_t, word_stats> &freq,
+    FILE *tmp_parse_file, FILE *last, FILE *sa, uint64_t &pos
+) {
     assert(pos == 0 || w.size() > minsize);
     if (w.size() <= minsize)
         return;
@@ -221,8 +222,9 @@ uint64_t process_file(Args &arg, map<uint64_t, word_stats> &wordFreq) {
     int c;
     uint64_t pos = 0; // ending position +1 of previous word in the original
                       // text, used for computing sa_info
-    assert(IBYTES <=
-           sizeof(pos)); // IBYTES bytes of pos are written to the sa info file
+    assert(
+        IBYTES <= sizeof(pos)
+    ); // IBYTES bytes of pos are written to the sa info file
     // init first word in the parsing with a Dollar char
     string word("");
     word.append(1, Dollar);
@@ -245,8 +247,9 @@ uint64_t process_file(Args &arg, map<uint64_t, word_stats> &wordFreq) {
                 word.append(1, c);
                 uint64_t hash = krw.addchar(c);
                 if (hash % arg.p == 0) {
-                    save_update_word(word, arg.w, wordFreq, g, last_file,
-                                     sa_file, pos);
+                    save_update_word(
+                        word, arg.w, wordFreq, g, last_file, sa_file, pos
+                    );
                 }
             }
             if (c <= Dollar)
@@ -276,8 +279,9 @@ uint64_t process_file(Args &arg, map<uint64_t, word_stats> &wordFreq) {
                 // end of word, save it and write its full hash to the output
                 // file cerr << "~"<< c << "~ " << hash << " ~~ <" << word << ">
                 // ~~ <" << krw.get_window() << ">" <<  endl;
-                save_update_word(word, arg.w, wordFreq, g, last_file, sa_file,
-                                 pos);
+                save_update_word(
+                    word, arg.w, wordFreq, g, last_file, sa_file, pos
+                );
             }
         }
         f.close();
@@ -304,8 +308,10 @@ bool pstringCompare(const string *a, const string *b) { return *a <= *b; }
 
 // given the sorted dictionary and the frequency map write the dictionary and
 // occ files also compute the 1-based rank for each hash
-void writeDictOcc(Args &arg, map<uint64_t, word_stats> &wfreq,
-                  vector<const string *> &sortedDict) {
+void writeDictOcc(
+    Args &arg, map<uint64_t, word_stats> &wfreq,
+    vector<const string *> &sortedDict
+) {
     assert(sortedDict.size() == wfreq.size());
     FILE *fdict;
     // open dictionary and occ files
