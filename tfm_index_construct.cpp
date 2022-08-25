@@ -219,18 +219,12 @@ uint64_t process_file(Args &arg, map<uint64_t, word_stats> &wordFreq) {
     FILE *g = open_aux_file(arg.inputFileName.c_str(), EXTPARS0, "wb");
     // open output file containing the char at position -(w+1) of each word
     FILE *last_file = open_aux_file(arg.inputFileName.c_str(), EXTLST, "wb");
-    // if requested open file containing the ending position+1 of each word
-    FILE *sa_file = NULL;
-    if (arg.SAinfo)
-        sa_file = open_aux_file(arg.inputFileName.c_str(), EXTSAI, "wb");
-
+    
     // main loop on the chars of the input file
     int c;
     uint64_t pos = 0; // ending position +1 of previous word in the original
                       // text, used for computing sa_info
-    assert(
-        IBYTES <= sizeof(pos)
-    ); // IBYTES bytes of pos are written to the sa info file
+    assert( IBYTES <= sizeof(pos) );
     // init first word in the parsing with a Dollar char
     string word("");
     word.append(1, Dollar);
@@ -254,7 +248,7 @@ uint64_t process_file(Args &arg, map<uint64_t, word_stats> &wordFreq) {
                 uint64_t hash = krw.addchar(c);
                 if (hash % arg.p == 0) {
                     save_update_word(
-                        word, arg.w, wordFreq, g, last_file, sa_file, pos
+                        word, arg.w, wordFreq, g, last_file, NULL, pos
                     );
                 }
             }
@@ -264,11 +258,7 @@ uint64_t process_file(Args &arg, map<uint64_t, word_stats> &wordFreq) {
         kseq_destroy(seq);
         gzclose(fp);
     } else {
-#ifdef GZSTREAM
-        igzstream f(fnam.c_str());
-#else
         ifstream f(fnam);
-#endif
         if (!f.rdbuf()->is_open()) { // is_open does not work on igzstreams
             perror(__func__);
             throw new std::runtime_error("Cannot open input file " + fnam);
@@ -286,7 +276,7 @@ uint64_t process_file(Args &arg, map<uint64_t, word_stats> &wordFreq) {
                 // file cerr << "~"<< c << "~ " << hash << " ~~ <" << word << ">
                 // ~~ <" << krw.get_window() << ">" <<  endl;
                 save_update_word(
-                    word, arg.w, wordFreq, g, last_file, sa_file, pos
+                    word, arg.w, wordFreq, g, last_file, NULL, pos
                 );
             }
         }
@@ -295,11 +285,8 @@ uint64_t process_file(Args &arg, map<uint64_t, word_stats> &wordFreq) {
     // virtually add w null chars at the end of the file and add the last word
     // in the dict
     word.append(arg.w, Dollar);
-    save_update_word(word, arg.w, wordFreq, g, last_file, sa_file, pos);
+    save_update_word(word, arg.w, wordFreq, g, last_file, NULL, pos);
     // close input and output files
-    if (sa_file)
-        if (fclose(sa_file) != 0)
-            die("Error closing SA file");
     if (fclose(last_file) != 0)
         die("Error closing last file");
     if (fclose(g) != 0)
