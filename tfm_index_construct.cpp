@@ -208,7 +208,6 @@ uint64_t process_file(Args &arg, map<uint64_t, word_stats> &wordFreq) {
     FILE *last_file = open_aux_file(arg.inputFileName.c_str(), EXTLST, "wb");
     
     // main loop on the chars of the input file
-    int c;
     uint64_t pos = 0; // ending position +1 of previous word in the original
                       // text, used for computing sa_info
     assert( IBYTES <= sizeof(pos) );
@@ -222,6 +221,7 @@ uint64_t process_file(Args &arg, map<uint64_t, word_stats> &wordFreq) {
         perror(__func__);
         throw new std::runtime_error("Cannot open input file " + fnam);
     }
+    int c;
     while ((c = f.get()) != EOF) {
         if (c <= Dollar) {
             cerr << "Invalid char found in input file: no additional chars "
@@ -245,10 +245,8 @@ uint64_t process_file(Args &arg, map<uint64_t, word_stats> &wordFreq) {
     word.append(arg.w, Dollar);
     save_update_word(word, arg.w, wordFreq, g, last_file, NULL, pos);
     // close input and output files
-    if (fclose(last_file) != 0)
-        die("Error closing last file");
-    if (fclose(g) != 0)
-        die("Error closing parse file");
+    if (fclose(last_file) != 0) die("Error closing last file");
+    if (fclose(g) != 0) die("Error closing parse file");
     if (pos != krw.tot_char + arg.w)
         cerr << "Pos: " << pos << " tot " << krw.tot_char << endl;
     return krw.tot_char;
@@ -264,9 +262,8 @@ void writeDictOcc(
     vector<const string *> &sortedDict
 ) {
     assert(sortedDict.size() == wfreq.size());
-    FILE *fdict;
     // open dictionary and occ files
-    fdict = open_aux_file(arg.inputFileName.c_str(), EXTDICT, "wb");
+    FILE *fdict = open_aux_file(arg.inputFileName.c_str(), EXTDICT, "wb");
     FILE *focc = open_aux_file(arg.inputFileName.c_str(), EXTOCC, "wb");
 
     word_int_t wrank = 1; // current word rank (1 based)
@@ -308,15 +305,12 @@ void remapParse(Args &arg, map<uint64_t, word_stats> &wfreq) {
     uint64_t hash;
     while (true) {
         size_t s = mfread(&hash, sizeof(hash), 1, moldp);
-        if (s == 0)
-            break;
-        if (s != 1)
-            die("Unexpected parse EOF");
+        if (s == 0) break;
+        if (s != 1) die("Unexpected parse EOF");
         word_int_t rank = wfreq.at(hash).rank;
         occ[rank]++;
         s = fwrite(&rank, sizeof(rank), 1, newp);
-        if (s != 1)
-            die("Error writing to new parse file");
+        if (s != 1) die("Error writing to new parse file");
     }
     if (fclose(newp) != 0)
         die("Error closing new parse file");
