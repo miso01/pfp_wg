@@ -1,29 +1,24 @@
-#include <deque>
-#include <iostream>
-#include <map>
-#include <utility>
-#include <vector>
 #include <algorithm>
 #include <assert.h>
 #include <ctime>
+#include <deque>
 #include <errno.h>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <map>
 #include <random>
+#include <sdsl/util.hpp>
 #include <sstream>
 #include <stdexcept>
 #include <stdint.h>
+#include <stdio.h>
 #include <string>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <utility>
 #include <vector>
-
-#include <fstream>
-#include <iostream>
-
-#include <sdsl/util.hpp>
+#include <zlib.h>
 
 #include "tfm_index.hpp"
 
@@ -33,8 +28,6 @@ extern "C" {
 }
 
 #include "kseq.h"
-#include <stdio.h>
-#include <zlib.h>
 KSEQ_INIT(gzFile, gzread)
 
 using namespace std;
@@ -639,12 +632,7 @@ size_t compute_sigma(const uint32_t *parse, const size_t psize) {
     return (max + 1);
 }
 
-int main(int argc, char **argv) {
-    Args arg;
-    parseArgs(argc, argv, arg);
-
-    map<uint64_t, word_stats> wordFreq;
-
+void calculate_word_frequencies(Args &arg, map<uint64_t, word_stats> &wordFreq) {
     try {
         process_file(arg, wordFreq);
     } catch (const std::bad_alloc &) {
@@ -652,17 +640,26 @@ int main(int argc, char **argv) {
         die("bad alloc exception");
     }
 
-    uint64_t totDWord = wordFreq.size();
-    if (totDWord > MAX_DISTINCT_WORDS) {
-        cerr << "Emergency exit! The number of distinc words (" << totDWord
+    
+    if (wordFreq.size() > MAX_DISTINCT_WORDS) {
+        cerr << "Emergency exit! The number of distinc words (" << wordFreq.size()
              << ")\n";
         cerr << "is larger than the current limit (" << MAX_DISTINCT_WORDS
              << ")\n";
         exit(1);
     }
+}
+
+int main(int argc, char **argv) {
+    Args arg;
+    parseArgs(argc, argv, arg);
+
+    map<uint64_t, word_stats> wordFreq;
+    calculate_word_frequencies(arg, wordFreq); // + <fn>.last <fn>.parse_old
 
     // create array of dictionary words
     vector<const string *> dictArray;
+    uint64_t totDWord = wordFreq.size();
     dictArray.reserve(totDWord);
     for (auto &x : wordFreq) {
         dictArray.push_back(&x.second.str);
@@ -670,26 +667,23 @@ int main(int argc, char **argv) {
     assert(dictArray.size() == totDWord);
     sort(dictArray.begin(), dictArray.end(), pstringCompare);
     // write plain dictionary and occ file, also compute rank for each hash
-    writeDictOcc(arg, wordFreq, dictArray);
+    writeDictOcc(arg, wordFreq, dictArray); // + <fn>.dict <fn>.occ
     dictArray.clear(); // reclaim memory
 
-    // remap parse file
-    remapParse(arg, wordFreq);
-
-    string infile = arg.inputFileName + ".parse";
-    string outfile = arg.inputFileName + ".tunnel";
-
+    remapParse(arg, wordFreq); // + <fn>.parse
+    
     // construct tunneled fm index
     tfm_index<> tfm;
 
-    cache_config config(true, "./", util::basename(infile));
+    cache_config config(true, "./", util::basename(arg.inputFileName));
     size_t psize;
-    uint32_t *parse = load_parse(infile, psize);
+    uint32_t *parse = load_parse(arg.inputFileName + ".parse", psize);
     size_t sigma = compute_sigma(parse, psize);
-    compute_BWT(parse, psize + 1, sigma, infile + ".bwt");
+    compute_BWT(parse, psize + 1, sigma, arg.inputFileName + ".bwt"); // <fn>.bwt
     delete parse;
-    construct_tfm_index(tfm, infile + ".bwt", psize + 1, config);
 
-    store_to_file(tfm, outfile);
+    construct_tfm_index(tfm, arg.inputFileName + ".bwt", psize + 1, config);
+    store_to_file(tfm, arg.inputFileName + ".tunnel"); // <fn>.tunnel
+
     return 0;
 }
