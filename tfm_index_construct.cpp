@@ -134,11 +134,6 @@ struct KR_window {
 };
 // -----------------------------------------------------------
 
-static void save_update_word(
-    string &w, unsigned int minsize, map<uint64_t, word_stats> &freq,
-    FILE *tmp_parse_file, FILE *last, FILE *sa, uint64_t &pos
-);
-
 // compute 64-bit KR hash of a string
 // to avoid overflows in 64 bit aritmethic the prime is taken < 2**55
 uint64_t kr_hash(string s) {
@@ -334,8 +329,7 @@ void print_help(char **argv, Args &args) {
     cout << "  Options: " << endl
          << "\t-w W\tsliding window size, def. " << args.w << endl
          << "\t-p M\tmodulo for defining phrases, def. " << args.p << endl
-         << "\t-h  \tshow help and exit" << endl
-         << "\t-s  \tcompute suffix array info" << endl;
+         << "\t-h  \tshow help and exit" << endl;
     exit(1);
 }
 
@@ -384,15 +378,6 @@ void parseArgs(int argc, char **argv, Args &arg) {
         cout << "Modulus must be at leas 10\n";
         exit(1);
     }
-}
-
-bool is_gzipped(std::string fname) {
-    FILE *fp = fopen(fname.c_str(), "rb");
-    int byte1 = 0, byte2 = 0;
-    fread(&byte1, sizeof(char), 1, fp);
-    fread(&byte2, sizeof(char), 1, fp);
-    fclose(fp);
-    return (byte1 == 0x1f && byte2 == 0x8b);
 }
 
 // -------------------------------------------------------

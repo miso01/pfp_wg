@@ -1,31 +1,3 @@
-/*
- * tfm_index.hpp for BWT Tunneling
- * Copyright (c) 2020 Uwe Baier All Rights Reserved.
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
-// ORIGINALLY COMES FROM:
-/*
- * tfm_index.hpp for Edge minimization in de Bruijn graphs
- * Copyright (c) 2019 Uwe Baier, Pascal Weber All Rights Reserved.
- */
-
 #ifndef TFM_INDEX_HPP
 #define TFM_INDEX_HPP
 
@@ -407,20 +379,6 @@ void construct_from_pfwg(
     tfm_index.m_din = bv_type(std::move(din));
     sdsl::util::init_support(tfm_index.m_din_rank, &tfm_index.m_din);
     sdsl::util::init_support(tfm_index.m_din_select, &tfm_index.m_din);
-
-    /*
-        std::cout << tfm_index.L << std::endl;
-        std::cout << tfm_index.m_din << std::endl;
-        std::cout << tfm_index.m_dout << std::endl;
-        std::cout << tfm_index.L.size() << std::endl;
-        std::cout << tfm_index.m_C << std::endl;
-        std::cout <<  "\t L: " << tfm_index.m_L << std::endl;
-        for (int i = 0; i < size; i++) {
-            std::cout << "inverse_select(" << i << ") = " <<
-       tfm_index.m_L.inverse_select(i).first << "\t"; std::cout << "C[c] = " <<
-       tfm_index.C[tfm_index.m_L[i]] << std::endl;
-        }
-    */
 }
 
 #endif

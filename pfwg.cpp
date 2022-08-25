@@ -1,13 +1,3 @@
-/* **************************************************************************
- * pfwg.cpp
- * Output the tunneled Wheeler graph computed using the prefix-free parsing
- *technique
- *
- * Usage:
- *   pfwg.x -h
- * for usage info
- *
- **************************************************************************** */
 #include "tfm_index.hpp"
 #include <algorithm>
 #include <assert.h>
@@ -27,6 +17,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <vector>
+
 extern "C" {
 #include "gsacak.h"
 #include "utils.h"
@@ -446,9 +437,6 @@ void generate_ilist(uint32_t *ilist, tfm_index<> &tfmp, uint64_t dwords) {
 }
 
 int main(int argc, char **argv) {
-    time_t start = time(NULL);
-
-    // translate command line parameters
     Args arg;
     parseArgs(argc, argv, arg);
     // read dictionary file
@@ -478,8 +466,6 @@ int main(int argc, char **argv) {
     delete[] dict.end;
     delete[] lcp;
     delete[] sa;
-    cout << "==== Elapsed time: " << difftime(time(NULL), start)
-         << " wall clock seconds\n";
     return 0;
 }
 
