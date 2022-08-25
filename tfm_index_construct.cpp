@@ -27,9 +27,6 @@ extern "C" {
 #include "utils.h"
 }
 
-#include "kseq.h"
-KSEQ_INIT(gzFile, gzread)
-
 using namespace std;
 using namespace sdsl;
 using namespace __gnu_cxx;
@@ -330,9 +327,6 @@ void remapParse(Args &arg, map<uint64_t, word_stats> &wfreq) {
         die("Error closing new parse file");
     if (mfclose(moldp) != 0)
         die("Error closing old parse segment");
-    // check old and recomputed occ coincide
-    // for(auto& x : wfreq)
-    //  assert(x.second.occ == occ[x.second.rank]);
 }
 
 void print_help(char **argv, Args &args) {
@@ -342,9 +336,6 @@ void print_help(char **argv, Args &args) {
          << "\t-p M\tmodulo for defining phrases, def. " << args.p << endl
          << "\t-h  \tshow help and exit" << endl
          << "\t-s  \tcompute suffix array info" << endl;
-#ifdef GZSTREAM
-    cout << "If the input file is gzipped it is automatically extracted\n";
-#endif
     exit(1);
 }
 
@@ -422,77 +413,6 @@ void printUsage(char **argv) {
         << "  File where to store the serialized tunneled FM index of the parse"
         << endl;
 };
-
-// little hack to get extra information from memory managemant
-const format_type leet_format = (format_type)1337;
-namespace sdsl {
-template <>
-void write_mem_log<leet_format>(ostream &out, const memory_monitor &m) {
-
-    // get all memory events
-    auto events = m.completed_events;
-    std::sort(events.begin(), events.end());
-    auto e = events.begin();
-
-    // scan events and detect peak and time of both suffix array and xbwt
-    // construction
-
-    // scan for fm index construction
-    int64_t fm_mem_peak = 0;
-    auto fm_start = m.start_log;
-    auto fm_end = fm_start;
-    while (e != events.end() && e->name != "FINDMINDBG") {
-        for (auto alloc : e->allocations) {
-            fm_mem_peak = (std::max)(fm_mem_peak, alloc.usage);
-            fm_end = alloc.timestamp;
-        }
-        ++e;
-    }
-
-    // scan for min dbg algorithm
-    int64_t dbg_mem_peak = 0;
-    auto dbg_start = fm_end;
-    auto dbg_end = dbg_start;
-    while (e != events.end() && e->name != "TFMINDEXCONSTRUCT") {
-        for (auto alloc : e->allocations) {
-            dbg_mem_peak = (std::max)(dbg_mem_peak, alloc.usage);
-            dbg_end = alloc.timestamp;
-        }
-        ++e;
-    }
-
-    // scan for tunneled fm index construction
-    int64_t tfm_mem_peak = 0;
-    auto tfm_start = dbg_end;
-    auto tfm_end = tfm_start;
-    while (e != events.end()) {
-        for (auto alloc : e->allocations) {
-            tfm_mem_peak = (std::max)(tfm_mem_peak, alloc.usage);
-            tfm_end = alloc.timestamp;
-        }
-        ++e;
-    }
-
-    // print results
-    out << "fm_mem_peak\t" << fm_mem_peak << endl;
-    out << "fm_time\t"
-        << chrono::duration_cast<chrono::milliseconds>(fm_end - fm_start)
-               .count()
-        << endl;
-
-    out << "min_dbg_mem_peak\t" << dbg_mem_peak << endl;
-    out << "min_dbg_time\t"
-        << chrono::duration_cast<chrono::milliseconds>(dbg_end - dbg_start)
-               .count()
-        << endl;
-
-    out << "tfm_mem_peak\t" << tfm_mem_peak << endl;
-    out << "tfm_time\t"
-        << chrono::duration_cast<chrono::milliseconds>(tfm_end - tfm_start)
-               .count()
-        << endl;
-};
-}; // namespace sdsl
 
 void compute_BWT(uint32_t *Text, long n, long k, string filename) {
     sa_index_t *SA = (sa_index_t *)malloc(n * sizeof(*SA));
