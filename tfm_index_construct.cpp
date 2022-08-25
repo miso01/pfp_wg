@@ -81,11 +81,6 @@ struct Args {
     string inputFileName = "";
     size_t w = 10;         // sliding window size and its default
     size_t p = 100;        // modulus for establishing stopping w-tuples
-    bool SAinfo = false;   // compute SA information
-    bool is_fasta = false; // read a fasta file
-    bool compress = false; // parsing called in compress mode
-    int th = 0;            // number of helper threads
-    int verbose = 0;       // verbosity level
 };
 
 // -----------------------------------------------------------------
@@ -230,58 +225,29 @@ uint64_t process_file(Args &arg, map<uint64_t, word_stats> &wordFreq) {
     word.append(1, Dollar);
     KR_window krw(arg.w);
     std::string line;
-    if (arg.is_fasta) {
-        gzFile fp;
-        kseq_t *seq;
-        int l;
-        fp = gzopen(fnam.c_str(), "r");
-        seq = kseq_init(fp);
-        while ((l = kseq_read(seq)) >= 0) {
-            for (size_t i = 0; i < seq->seq.l; i++) {
-                c = std::toupper(seq->seq.s[i]);
-                if (c <= Dollar) {
-                    cerr << "Invalid char found in input file: no additional "
-                            "chars will be read\n";
-                    break;
-                }
-                word.append(1, c);
-                uint64_t hash = krw.addchar(c);
-                if (hash % arg.p == 0) {
-                    save_update_word(
-                        word, arg.w, wordFreq, g, last_file, NULL, pos
-                    );
-                }
-            }
-            if (c <= Dollar)
-                break;
-        }
-        kseq_destroy(seq);
-        gzclose(fp);
-    } else {
-        ifstream f(fnam);
-        if (!f.rdbuf()->is_open()) { // is_open does not work on igzstreams
-            perror(__func__);
-            throw new std::runtime_error("Cannot open input file " + fnam);
-        }
-        while ((c = f.get()) != EOF) {
-            if (c <= Dollar) {
-                cerr << "Invalid char found in input file: no additional chars "
-                        "will be read\n";
-                break;
-            }
-            word.append(1, c);
-            uint64_t hash = krw.addchar(c);
-            if (hash % arg.p == 0) {
-                // end of word, save it and write its full hash to the output
-                // file cerr << "~"<< c << "~ " << hash << " ~~ <" << word << ">
-                // ~~ <" << krw.get_window() << ">" <<  endl;
-                save_update_word(
-                    word, arg.w, wordFreq, g, last_file, NULL, pos
-                );
-            }
-        }
-        f.close();
+    ifstream f(fnam);
+    if (!f.rdbuf()->is_open()) { // is_open does not work on igzstreams
+        perror(__func__);
+        throw new std::runtime_error("Cannot open input file " + fnam);
     }
+    while ((c = f.get()) != EOF) {
+        if (c <= Dollar) {
+            cerr << "Invalid char found in input file: no additional chars "
+                    "will be read\n";
+            break;
+        }
+        word.append(1, c);
+        uint64_t hash = krw.addchar(c);
+        if (hash % arg.p == 0) {
+            // end of word, save it and write its full hash to the output
+            // file cerr << "~"<< c << "~ " << hash << " ~~ <" << word << ">
+            // ~~ <" << krw.get_window() << ">" <<  endl;
+            save_update_word(
+                word, arg.w, wordFreq, g, last_file, NULL, pos
+            );
+        }
+    }
+    f.close();
     // virtually add w null chars at the end of the file and add the last word
     // in the dict
     word.append(arg.w, Dollar);
@@ -308,10 +274,7 @@ void writeDictOcc(
     assert(sortedDict.size() == wfreq.size());
     FILE *fdict;
     // open dictionary and occ files
-    if (arg.compress)
-        fdict = open_aux_file(arg.inputFileName.c_str(), EXTDICZ, "wb");
-    else
-        fdict = open_aux_file(arg.inputFileName.c_str(), EXTDICT, "wb");
+    fdict = open_aux_file(arg.inputFileName.c_str(), EXTDICT, "wb");
     FILE *focc = open_aux_file(arg.inputFileName.c_str(), EXTOCC, "wb");
 
     word_int_t wrank = 1; // current word rank (1 based)
@@ -320,14 +283,6 @@ void writeDictOcc(
         int offset = 0;
         size_t len = (*x).size(); // offset and length of word
         assert(len > (size_t)arg.w);
-        if (arg.compress) { // if we are compressing remove overlapping and
-                            // extraneous chars
-            len -= arg.w;   // remove the last w chars
-            if (word[0] == Dollar) {
-                offset = 1;
-                len -= 1;
-            } // remove the very first Dollar
-        }
         size_t s = fwrite(word + offset, 1, len, fdict);
         if (s != len)
             die("Error writing to DICT file");
@@ -353,7 +308,7 @@ void writeDictOcc(
 void remapParse(Args &arg, map<uint64_t, word_stats> &wfreq) {
     // open parse files. the old parse can be stored in a single file or in
     // multiple files
-    mFile *moldp = mopen_aux_file(arg.inputFileName.c_str(), EXTPARS0, arg.th);
+    mFile *moldp = mopen_aux_file(arg.inputFileName.c_str(), EXTPARS0, 0);
     FILE *newp = open_aux_file(arg.inputFileName.c_str(), EXTPARSE, "wb");
 
     // recompute occ as an extra check
@@ -404,14 +359,8 @@ void parseArgs(int argc, char **argv, Args &arg) {
     puts("");
 
     string sarg;
-    while ((c = getopt(argc, argv, "p:w:fsht:v")) != -1) {
+    while ((c = getopt(argc, argv, "p:w:h")) != -1) {
         switch (c) {
-        case 's':
-            arg.SAinfo = true;
-            break;
-        case 'c':
-            arg.compress = true;
-            break;
         case 'w':
             sarg.assign(optarg);
             arg.w = stoi(sarg);
@@ -419,16 +368,6 @@ void parseArgs(int argc, char **argv, Args &arg) {
         case 'p':
             sarg.assign(optarg);
             arg.p = stoi(sarg);
-            break;
-        case 'f':
-            arg.is_fasta = true;
-            break;
-        case 't':
-            sarg.assign(optarg);
-            arg.th = stoi(sarg);
-            break;
-        case 'v':
-            arg.verbose++;
             break;
         case 'h':
             print_help(argv, arg);
@@ -452,10 +391,6 @@ void parseArgs(int argc, char **argv, Args &arg) {
     }
     if (arg.p < 10) {
         cout << "Modulus must be at leas 10\n";
-        exit(1);
-    }
-    if (arg.th != 0) {
-        cout << "The NT version cannot use threads\n";
         exit(1);
     }
 }
