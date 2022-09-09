@@ -1,26 +1,28 @@
 #include <algorithm>
-#include <assert.h>
 #include <ctime>
 #include <deque>
-#include <errno.h>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <map>
 #include <random>
-#include <sdsl/util.hpp>
-#include <semaphore.h>
 #include <sstream>
 #include <stdexcept>
+#include <string>
+#include <utility>
+#include <vector>
+
 #include <stdint.h>
 #include <stdio.h>
-#include <string>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <utility>
-#include <vector>
-#include <zlib.h>
+#include <semaphore.h>
+#include <errno.h>
+#include <assert.h>
+
+#include <sdsl/util.hpp>
+// #include <zlib.h>
 
 #include "tfm_index.hpp"
 
@@ -208,7 +210,7 @@ uint64_t process_file(Args &arg, map<uint64_t, word_stats> &wordFreq) {
     FILE *g = open_aux_file(arg.inputFileName.c_str(), EXTPARS0, "wb");
     // open output file containing the char at position -(w+1) of each word
     FILE *last_file = open_aux_file(arg.inputFileName.c_str(), EXTLST, "wb");
-    
+
     // main loop on the chars of the input file
     uint64_t pos = 0; // ending position +1 of previous word in the original
                       // text, used for computing sa_info
@@ -463,7 +465,7 @@ void calculate_word_frequencies(Args &arg, map<uint64_t, word_stats> &wordFreq) 
         die("bad alloc exception");
     }
 
-    
+
     if (wordFreq.size() > MAX_DISTINCT_WORDS) {
         cerr << "Emergency exit! The number of distinc words (" << wordFreq.size()
              << ")\n";
@@ -967,7 +969,7 @@ int main(int argc, char **argv) {
     dictArray.clear(); // reclaim memory
 
     remapParse(arg, wordFreq); // + <fn>.parse
-    
+
     // construct tunneled fm index
     tfm_index<> tfm;
 

@@ -3,7 +3,7 @@ CC=gcc
 CFLAGS=-std=c99 -Wall -Wextra
 
 CXX=g++
-CXX_FLAGS=-std=c++11 -Wall -Wextra -DNDEBUG
+CXX_FLAGS=-std=c++11 -Wall -Wextra
 
 EXECS=tfm_index_construct.x tfm_index_invert.x
 
@@ -25,8 +25,10 @@ clean:
 %.o: %.c %.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
+# g++ -std=c++11 -Wall -Wextra -o tfm_index_construct.x tfm_index_construct.cpp gsacak.o utils.o -lsdsl
 tfm_index_construct.x: tfm_index_construct.cpp gsacak.o utils.o
-	$(CXX) $(CXX_FLAGS) -o $@ $^ -lsdsl -ldivsufsort64 -lz -ldl -pthread -ldivsufsort
+	$(CXX) $(CXX_FLAGS) -DNDEBUG -o $@ $^ -lsdsl
 
+# g++ -std=c++11 -Wall -Wextra -o tfm_index_invert.x tfm_index_invert.cpp -lsdsl
 tfm_index_invert.x: tfm_index_invert.cpp
-	$(CXX) $(CXX_FLAGS) -o $@ $^ -lsdsl -ldivsufsort -ldivsufsort64
+	$(CXX) $(CXX_FLAGS) -o $@ $^ -lsdsl
