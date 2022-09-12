@@ -395,7 +395,10 @@ void printUsage(char **argv) {
 
 void compute_BWT(uint32_t *Text, long n, long k, string filename) {
     sa_index_t *SA = (sa_index_t *)malloc(n * sizeof(*SA));
-    sacak_int(Text, SA, n, k);
+    // sacak_int(Text, SA, n, k);
+    // gsacak_int(Text, SA, NULL, NULL, n, k);
+    SACA_K((int_t *)Text, SA, n, k, n, sizeof(int_text), 0);
+    // gSACA_K(Text, SA, n, k, sizeof(int_text), 1, 0);
 
     sa_index_t *BWTsa = SA; // BWT overlapping SA
     assert(n > 1);

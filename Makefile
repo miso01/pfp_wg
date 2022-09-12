@@ -1,9 +1,9 @@
 # compilation flags
 CC=gcc
-CFLAGS=-std=c99 -Wall -Wextra
+CFLAGS=-std=c99 -Wall -Wextra -g
 
 CXX=g++
-CXX_FLAGS=-std=c++11 -Wall -Wextra
+CXX_FLAGS=-std=c++11 -Wall -Wextra -g
 
 EXECS=tfm_index_construct.x tfm_index_invert.x
 
