@@ -512,15 +512,7 @@ static void compute_dict_bwt_lcp(
     (void)dwords;
     (void)w;
 
-    cout << "Each SA entry: " << sizeof(*sa) << " bytes\n";
-    cout << "Each LCP entry: " << sizeof(*lcp) << " bytes\n";
-
-    cout << "Computing SA and LCP of dictionary" << endl;
-    time_t start = time(NULL);
     gsacak(d, sa, lcp, NULL, dsize);
-    cout << "Computing SA/LCP took " << difftime(time(NULL), start)
-         << " wall clock seconds\n";
-    // ------ do some checking on the sa
     assert(d[dsize - 1] == EndOfDict);
     assert(sa[0] == (unsigned long)dsize - 1); // sa[0] is the EndOfDict symbol
     for (long i = 0; i < dwords; i++)
@@ -667,7 +659,6 @@ void bwt(
     FILE *fbwt = open_aux_file(arg.inputFileName.c_str(), "L", "wb");
 
     // main loop: consider each entry in the SA of dict
-    time_t start = time(NULL);
     long full_words = 0, easy_bwts = 0, hard_bwts = 0, next;
     uint32_t seqid;
     for (long i = dwords + arg.w + 1; i < dsize; i = next) {
@@ -733,11 +724,6 @@ void bwt(
         }
     }
     assert(full_words == dwords);
-    cout << "Full words: " << full_words << endl;
-    cout << "Easy bwt chars: " << easy_bwts << endl;
-    cout << "Hard bwt chars: " << hard_bwts << endl;
-    cout << "Generating the final BWT took " << difftime(time(NULL), start)
-         << " wall clock seconds\n";
     fclose(fbwt);
 }
 
