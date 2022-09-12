@@ -1,3 +1,5 @@
+#include <stdint.h>
+#include <stdio.h>
 
 // special symbols used by the construction algorithm:
 //   they cannot appear in the input file

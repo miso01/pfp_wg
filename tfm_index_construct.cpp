@@ -23,13 +23,12 @@
 #include <assert.h>
 
 #include <sdsl/util.hpp>
-// #include <zlib.h>
 
 #include "tfm_index.hpp"
 
 extern "C" {
-#include "gsacak.h"
-#include "utils.h"
+#include "gsacak.c"
+#include "utils.c"
 }
 
 using namespace std;

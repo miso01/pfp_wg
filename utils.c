@@ -59,7 +59,7 @@ FILE *open_aux_file_num(
 
 // open multiple file for reading. If nsegs==0 then it is a single fle
 mFile *mopen_aux_file(const char *base, const char *ext, int nsegs) {
-    mFile *f = malloc(sizeof(mFile));
+    mFile *f = (mFile *)malloc(sizeof(mFile));
     if (f == NULL)
         die("Out of memory");
     f->base = strdup(base);
@@ -88,7 +88,7 @@ int mfclose(mFile *f) {
 size_t mfread(void *vptr, size_t size, size_t nmemb, mFile *f) {
     // try reading from current file
     size_t read = 0;
-    char *ptr = vptr;
+    char *ptr = (char *)vptr;
     while (1) {
         size_t s = fread(ptr + read * size, size, nmemb, f->f);
         assert(s <= nmemb);
