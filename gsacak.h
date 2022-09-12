@@ -40,47 +40,4 @@ typedef uint32_t uint_t;
 typedef uint32_t int_text; // 4N bytes for s[0..n-1]
 #define PRIdT PRIu32
 
-/******************************************************************************/
-
-/** @brief computes the suffix array of string s[0..n-1]
- *
- *  @param k	alphabet size
- */
-int sacak_int(int_text *s, uint_t *SA, uint_t n, uint_t k);
-
-/******************************************************************************/
-
-/** @brief Computes the suffix array SA (LCP, DA) of T^cat in s[0..n-1]
- *
- *  @param s		input concatenated string, using separators s[i]=1 and
- * with s[n-1]=0
- *  @param SA		suffix array
- *  @param LCP	LCP array
- *  @param DA		Document array
- *  @param n	string length
- *
- *  @return depth of the recursive calls.
- */
-int gsacak(unsigned char *s, uint_t *SA, int_t *LCP, int_t *DA, uint_t n);
-
-/** @brief Computes the suffix array SA (LCP, DA) of T^cat in s[0..n-1]
- *
- *  @param s    input concatenated string, with s[n-1]=0
- *  @param K	alphabet size
- */
-int gsacak_int(
-    int_text *s, uint_t *SA, int_t *LCP, int_t *DA, uint_t n, uint_t k
-);
-
-/******************************************************************************/
-
-int_t gSACA_K(
-    uint_t *s, uint_t *SA, uint_t n, unsigned int K, int cs, uint_t separator,
-    int level
-);
-
-int_t SACA_K(
-    int_t *s, uint_t *SA, uint_t n, unsigned int K, uint_t m, int cs, int level
-);
-
 #endif
