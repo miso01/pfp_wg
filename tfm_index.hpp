@@ -223,8 +223,6 @@ void construct_tfm_index(
         C[L[i] + 1] += 1;
     for (uint64_t i = 0; i < wt_L.sigma; i++)
         C[i + 1] += C[i];
-    std::cout << "C array for sigma = " << wt_L.sigma
-              << " and length=" << wt_L.size() << " created!" << std::endl;
 
     typedef typename t_tfm_index_type::size_type size_type;
     std::pair<size_type, size_type> dbg_res;
@@ -235,7 +233,6 @@ void construct_tfm_index(
         auto event = sdsl::memory_monitor::event("FINDMINDBG");
         dbg_res = dbg_algorithms::find_min_dbg(wt_L, C, B, config);
     }
-    std::cout << "Min dbg found!" << std::endl;
 
     // use bitvector to determine prefix intervals to be tunneled
     auto event = sdsl::memory_monitor::event("TFMINDEXCONSTRUCT");

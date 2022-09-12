@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cstdint>
 #include <ctime>
 #include <deque>
 #include <fstream>
@@ -336,11 +337,6 @@ void parseArgs(int argc, char **argv, Args &arg) {
     extern char *optarg;
     extern int optind;
 
-    puts("==== Command line:");
-    for (int i = 0; i < argc; i++)
-        printf(" %s", argv[i]);
-    puts("");
-
     string sarg;
     while ((c = getopt(argc, argv, "p:w:h")) != -1) {
         switch (c) {
@@ -399,33 +395,21 @@ void printUsage(char **argv) {
 
 void compute_BWT(uint32_t *Text, long n, long k, string filename) {
     sa_index_t *SA = (sa_index_t *)malloc(n * sizeof(*SA));
-    printf("Computing SA of size %ld over an alphabet of size %ld\n", n, k);
-    int depth = sacak_int(Text, SA, n, k);
-    printf("SA computed with depth: %d\n", depth);
+    sacak_int(Text, SA, n, k);
 
-    // transform SA->BWT inplace and write remapped last array, and possibly
-    // sainfo
     sa_index_t *BWTsa = SA; // BWT overlapping SA
     assert(n > 1);
     // first BWT symbol
     assert(SA[0] == n);
     // 2nd, 3rd etc BWT symbols
     for (long i = 0; i < n; i++) {
-        if (SA[i] == 0) {
-            assert(i == 1); // Text[0]=$abc... is the second lex word
-            BWTsa[i] = 0;   // eos in BWT, there is no phrase in D corresponding
-                            // to this symbol so we write dummy values
-        } else {
-            BWTsa[i] = Text[SA[i] - 1];
-        }
-        // if(BWTsa[i]==0) cout << i << endl;
+        if (SA[i] == 0) { BWTsa[i] = 0; }
+        else { BWTsa[i] = Text[SA[i] - 1]; }
     }
-    printf("BWT constructed\n");
 
     FILE *fout = fopen(filename.c_str(), "wb");
     fwrite(BWTsa, sizeof(BWTsa[0]), n, fout);
     fclose(fout);
-    printf("BWT written to file\n");
 }
 
 uint32_t *load_parse(const string &infile, size_t &psize) {
@@ -693,7 +677,7 @@ void bwt(
         int_t suffixLen = getlen(sa[i], eos, dwords, &seqid);
         // cout << suffixLen << " " << seqid << endl;
         //  ignore suffixes of lenght <= w
-        if (suffixLen <= arg.w)
+        if (suffixLen <= (int_t)arg.w)
             continue;
         // ----- simple case: the suffix is a full word
         if (sa[i] == 0 || d[sa[i] - 1] == EndOfWord) {
@@ -782,7 +766,7 @@ void din(
         int_t suffixLen = getlen(sa[i], eos, dwords, &seqid);
         // cout << suffixLen << " " << seqid << endl;
         //  ignore suffixes of lenght <= w
-        if (suffixLen <= arg.w)
+        if (suffixLen <= (int_t)arg.w)
             continue;
         // ----- simple case: the suffix is a full word
         if (sa[i] == 0 || d[sa[i] - 1] == EndOfWord) {
@@ -844,7 +828,7 @@ void dout(
         int_t suffixLen = getlen(sa[i], eos, dwords, &seqid);
         // cout << suffixLen << " " << seqid << endl;
         //  ignore suffixes of lenght <= w
-        if (suffixLen <= arg.w)
+        if (suffixLen <= (int_t)arg.w)
             continue;
         // ----- simple case: the suffix is a full word
         if (sa[i] == 0 || d[sa[i] - 1] == EndOfWord) {
@@ -898,14 +882,11 @@ Dict read_dictionary(const char *filename) {
         die("ftell dictionary");
     if (dsize <= 1 + 4)
         die("invalid dictionary file");
-    cout << "Dictionary file size: " << dsize << endl;
-#if !M64
     if (dsize > 0x7FFFFFFE) {
         printf("Dictionary size greater than  2^31-2!\n");
         printf("Please use 64 bit version\n");
         exit(1);
     }
-#endif
 
     uint8_t *d = new uint8_t[dsize];
     rewind(g);
@@ -919,7 +900,6 @@ Dict read_dictionary(const char *filename) {
         if (d[i] == EndOfWord)
             dwords++;
     }
-    cout << "Dictionary contains " << dwords << " words" << endl;
 
     uint64_t *end = new uint64_t[dwords];
     int cnt = 0;

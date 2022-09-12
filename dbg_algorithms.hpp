@@ -95,8 +95,6 @@ class dbg_algorithms {
         std::string tmp_file_name = sdsl::cache_file_name(tmp_key, config);
         sdsl::int_vector_buffer<> nb_buffer(tmp_file_name, std::ios::out);
 
-        // run algorithm
-        std::cout << "Minimizing edges" << std::endl;
         auto result = minimize_dbg_edges<true>(
             csa, C, csa.size(), B, nb_buffer, [](size_type, size_type) {}
         );
