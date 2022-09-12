@@ -74,7 +74,7 @@ void compute_lcp_phi_sparse(
             ++l;
         PLCP[i] = l;
 
-        if (LCP[i] == n1 - 1)
+        if (LCP[i] == (int_t)n1 - 1)
             l -= RA[i + 1] - RA[i];
         else
             l -=
@@ -443,7 +443,7 @@ void induceSAl0_generalized_LCP(
 
                 int_t curr = 1, end = 1;
                 STACK[top].idx = U_MAX;
-                for (j = 0; j < K; j++) {
+                for (j = 0; j < (int_t)K; j++) {
 
                     if (STACK[end - 1].idx < tmp[j] + 1) {
 
@@ -520,7 +520,7 @@ void induceSAs0_generalized_LCP(
                     int_t min = I_MAX, end = top - 1;
 
                     int_t last = last_occ[chr(j)];
-                    while (STACK[end].idx <= last)
+                    while ((int_t)STACK[end].idx <= last)
                         end--;
 
                     min = STACK[(end + 1)].lcp;
@@ -765,7 +765,7 @@ void induceSAl0_generalized_LCP_DA(
 
                 int_t curr = 1, end = 1;
                 STACK[top].idx = U_MAX;
-                for (j = 0; j < K; j++) {
+                for (j = 0; j < (int_t)K; j++) {
 
                     if (STACK[end - 1].idx < tmp[j] + 1) {
 
@@ -843,7 +843,7 @@ void induceSAs0_generalized_LCP_DA(
                     int_t min = I_MAX, end = top - 1;
 
                     int_t last = last_occ[chr(j)];
-                    while (STACK[end].idx <= last)
+                    while ((int_t)STACK[end].idx <= last)
                         end--;
 
                     min = STACK[(end + 1)].lcp;
@@ -1035,7 +1035,7 @@ void induceSAl1(int_t *SA, int_t *s, int_t n, int_t suffix, int cs) {
             //   left neighbor bucket.
             int_t foo, bar;
             foo = SA[c];
-            for (h = c - 1; SA[h] >= 0 || SA[h] == EMPTY_k; h--) {
+            for (h = c - 1; SA[h] >= 0 || (uint_t)SA[h] == EMPTY_k; h--) {
                 bar = SA[h];
                 SA[h] = foo;
                 foo = bar;
@@ -1047,15 +1047,15 @@ void induceSAl1(int_t *SA, int_t *s, int_t n, int_t suffix, int cs) {
             d = EMPTY_k;
         }
 
-        if (d == EMPTY_k) { // SA[c] is empty.
-            if (c < n - 1 && SA[c + 1] == EMPTY_k) {
+        if ((uint_t)d == EMPTY_k) { // SA[c] is empty.
+            if (c < n - 1 && (uint_t)SA[c + 1] == EMPTY_k) {
                 SA[c] = -1; // init the counter.
                 SA[c + 1] = j;
             } else
                 SA[c] = j; // a size-1 bucket.
         } else {           // SA[c] is reused as a counter.
             int_t pos = c - d + 1;
-            if (pos > n - 1 || SA[pos] != EMPTY_k) {
+            if (pos > n - 1 || (uint_t)SA[pos] != EMPTY_k) {
                 // we are running into the right
                 //   neighbor bucket.
                 // shift-left one step the items
@@ -1085,7 +1085,7 @@ void induceSAl1(int_t *SA, int_t *s, int_t n, int_t suffix, int cs) {
     //   with its head being reused as a counter.
     for (i = 1; i < n; i++) {
         j = SA[i];
-        if (j < 0 && j != EMPTY_k) { // is SA[i] a counter?
+        if (j < 0 && (uint_t)j != EMPTY_k) { // is SA[i] a counter?
             for (h = 0; h < -j; h++)
                 SA[i + h] = SA[i + h + 1];
             SA[i + h] = EMPTY_k;
@@ -1116,7 +1116,7 @@ void induceSAs1(int_t *SA, int_t *s, int_t n, int_t suffix, int cs) {
             //   right neighbor bucket.
             int_t foo, bar;
             foo = SA[c];
-            for (h = c + 1; SA[h] >= 0 || SA[h] == EMPTY_k; h++) {
+            for (h = c + 1; SA[h] >= 0 || (uint_t)SA[h] == EMPTY_k; h++) {
                 bar = SA[h];
                 SA[h] = foo;
                 foo = bar;
@@ -1128,15 +1128,15 @@ void induceSAs1(int_t *SA, int_t *s, int_t n, int_t suffix, int cs) {
             d = EMPTY_k;
         }
 
-        if (d == EMPTY_k) { // SA[c] is empty.
-            if (SA[c - 1] == EMPTY_k) {
+        if ((uint_t)d == EMPTY_k) { // SA[c] is empty.
+            if ((uint_t)SA[c - 1] == EMPTY_k) {
                 SA[c] = -1; // init the counter.
                 SA[c - 1] = j;
             } else
                 SA[c] = j; // a size-1 bucket.
         } else {           // SA[c] is reused as a counter.
             int_t pos = c + d - 1;
-            if (SA[pos] != EMPTY_k) {
+            if ((uint_t)SA[pos] != EMPTY_k) {
                 // we are running into the left
                 //   neighbor bucket.
                 // shift-right one step the items
@@ -1163,7 +1163,7 @@ void induceSAs1(int_t *SA, int_t *s, int_t n, int_t suffix, int cs) {
     if (!suffix)
         for (i = n - 1; i > 0; i--) {
             j = SA[i];
-            if (j < 0 && j != EMPTY_k) { // is SA[i] a counter?
+            if (j < 0 && (uint_t)j != EMPTY_k) { // is SA[i] a counter?
                 for (h = 0; h < -j; h++)
                     SA[i - h] = SA[i - h - 1];
                 SA[i - h] = EMPTY_k;
@@ -1204,15 +1204,15 @@ void putSubstr1(int_t *SA, int_t *s, int_t n, int cs) {
             }
 
             int_t d = SA[c];
-            if (d == EMPTY_k) { // SA[c] is empty.
-                if (SA[c - 1] == EMPTY_k) {
+            if ((uint_t)d == EMPTY_k) { // SA[c] is empty.
+                if ((uint_t)SA[c - 1] == EMPTY_k) {
                     SA[c] = -1; // init the counter.
                     SA[c - 1] = i;
                 } else
                     SA[c] = i; // a size-1 bucket.
             } else {           // SA[c] is reused as a counter
                 int_t pos = c + d - 1;
-                if (SA[pos] != EMPTY_k) {
+                if ((uint_t)SA[pos] != EMPTY_k) {
                     // we are running into the left
                     //   neighbor bucket.
                     // shift-right one step the items
@@ -1232,7 +1232,7 @@ void putSubstr1(int_t *SA, int_t *s, int_t n, int cs) {
     //   with its head being reused as a counter.
     for (i = n - 1; i > 0; i--) {
         j = SA[i];
-        if (j < 0 && j != EMPTY_k) { // is SA[i] a counter?
+        if (j < 0 && (uint_t)j != EMPTY_k) { // is SA[i] a counter?
             for (h = 0; h < -j; h++)
                 SA[i - h] = SA[i - h - 1];
             SA[i - h] = EMPTY_k;
@@ -2684,22 +2684,22 @@ int_t gSACA_K_LCP_DA(
 /*****************************************************************************/
 
 int sacak(unsigned char *s, uint_t *SA, uint_t n) {
-    if ((s == NULL) || (SA == NULL) || (n < 0))
+    if ((s == NULL) || (SA == NULL))
         return -1;
     return SACA_K((int_t *)s, (uint_t *)SA, n, 256, n, sizeof(char), 0);
 }
 
 int sacak_int(int_text *s, uint_t *SA, uint_t n, uint_t k) {
-    if ((s == NULL) || (SA == NULL) || (n < 0))
+    if ((s == NULL) || (SA == NULL))
         return -1;
     return SACA_K((int_t *)s, (uint_t *)SA, n, k, n, sizeof(int_text), 0);
 }
 
 int gsacak(unsigned char *s, uint_t *SA, int_t *LCP, int_t *DA, uint_t n) {
-    if ((s == NULL) || (SA == NULL) || (n < 0))
+    if ((s == NULL) || (SA == NULL))
         return -1;
 
-    int i;
+    uint_t i;
     for (i = 0; i < n; i++)
         SA[i] = 0;
     if (LCP != NULL)
@@ -2730,10 +2730,10 @@ int gsacak(unsigned char *s, uint_t *SA, int_t *LCP, int_t *DA, uint_t n) {
 int gsacak_int(
     int_text *s, uint_t *SA, int_t *LCP, int_t *DA, uint_t n, uint_t k
 ) {
-    if ((s == NULL) || (SA == NULL) || (n < 0))
+    if ((s == NULL) || (SA == NULL))
         return -1;
 
-    int i;
+    uint_t i;
     for (i = 0; i < n; i++)
         SA[i] = 0;
     if (LCP != NULL)
