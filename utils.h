@@ -13,22 +13,6 @@
 #define IBYTES 5 // bytes used to represent a large integer (at most 8)
 #define SABYTES IBYTES // bytes used to write a suffix array value in the output .sa file
 
-// file name extensions
-#define EXTPARSE "parse"
-#define EXTPARS0 "parse_old"
-#define EXTOCC "occ"
-#define EXTDICT "dict"
-#define EXTDICZ "dicz"
-#define EXTLST "last"
-#define EXTBWLST "bwlast"
-#define EXTSAI "sai"
-#define EXTBWSAI "bwsai"
-#define EXTILIST "ilist"
-#define EXTSA "sa"
-#define EXTSSA "ssa"
-#define EXTESA "esa"
-#define EXTTFM "tunnel"
-
 // multi segment file functions
 typedef struct multiFile {
     FILE *f;    // file currently opened

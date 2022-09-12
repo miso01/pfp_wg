@@ -207,9 +207,9 @@ uint64_t process_file(Args &arg, map<uint64_t, word_stats> &wordFreq) {
     // open a, possibly compressed, input file
     string fnam = arg.inputFileName;
     // open the 1st pass parsing file
-    FILE *g = open_aux_file(arg.inputFileName.c_str(), EXTPARS0, "wb");
+    FILE *g = open_aux_file(arg.inputFileName.c_str(), "parse_old", "wb");
     // open output file containing the char at position -(w+1) of each word
-    FILE *last_file = open_aux_file(arg.inputFileName.c_str(), EXTLST, "wb");
+    FILE *last_file = open_aux_file(arg.inputFileName.c_str(), "last", "wb");
 
     // main loop on the chars of the input file
     uint64_t pos = 0; // ending position +1 of previous word in the original
@@ -267,8 +267,8 @@ void writeDictOcc(
 ) {
     assert(sortedDict.size() == wfreq.size());
     // open dictionary and occ files
-    FILE *fdict = open_aux_file(arg.inputFileName.c_str(), EXTDICT, "wb");
-    FILE *focc = open_aux_file(arg.inputFileName.c_str(), EXTOCC, "wb");
+    FILE *fdict = open_aux_file(arg.inputFileName.c_str(), "dict", "wb");
+    FILE *focc = open_aux_file(arg.inputFileName.c_str(), "occ", "wb");
 
     word_int_t wrank = 1; // current word rank (1 based)
     for (auto x : sortedDict) {
@@ -301,8 +301,8 @@ void writeDictOcc(
 void remapParse(Args &arg, map<uint64_t, word_stats> &wfreq) {
     // open parse files. the old parse can be stored in a single file or in
     // multiple files
-    mFile *moldp = mopen_aux_file(arg.inputFileName.c_str(), EXTPARS0, 0);
-    FILE *newp = open_aux_file(arg.inputFileName.c_str(), EXTPARSE, "wb");
+    mFile *moldp = mopen_aux_file(arg.inputFileName.c_str(), "parse_old", 0);
+    FILE *newp = open_aux_file(arg.inputFileName.c_str(), "parse", "wb");
 
     // recompute occ as an extra check
     vector<occ_int_t> occ(wfreq.size() + 1, 0); // ranks are zero based
@@ -863,7 +863,7 @@ void dout(
 }
 
 Dict read_dictionary(const char *filename) {
-    FILE *g = open_aux_file(filename, EXTDICT, "rb");
+    FILE *g = open_aux_file(filename, "dict", "rb");
     fseek(g, 0, SEEK_END);
     long dsize = ftell(g);
     if (dsize < 0)
