@@ -947,31 +947,22 @@ int main(int argc, char **argv) {
     delete parse;
 
     construct_tfm_index(tfm, arg.inputFileName + ".bwt", psize + 1, config);
-    store_to_file(tfm, arg.inputFileName + ".tunnel"); // <fn>.tunnel
 
 //-------------------------------------------------------------------------------
 
     struct Dict dict = read_dictionary(arg.inputFileName.c_str());
 
-    // read the tunneled WG of the parse
-    char *name;
-    int e = asprintf(&name, "%s.%s", arg.inputFileName.c_str(), "tunnel");
-    if (e == -1)
-        die("ERROR during the creation of a tunneled WG of P filename!");
-    tfm_index<> tfmp;
-    load_from_file(tfmp, name);
-
-    uint32_t *ilist = new uint32_t[tfmp.L.size() - 1];
-    generate_ilist(ilist, tfmp, dict.dwords);
+    uint32_t *ilist = new uint32_t[tfm.L.size() - 1];
+    generate_ilist(ilist, tfm, dict.dwords);
 
     // compute SA and BWT of D and do some checking on them
     uint_t *sa;
     int_t *lcp;
     compute_dict_bwt_lcp(dict.d, dict.dsize, dict.dwords, arg.w, &sa, &lcp);
 
-    bwt(arg, dict.d, dict.dsize, dict.end, ilist, tfmp, dict.dwords, sa, lcp);
-    din(arg, dict.d, dict.dsize, tfmp, dict.dwords, sa, lcp);
-    dout(arg, dict.d, dict.dsize, tfmp, dict.dwords, sa, lcp);
+    bwt(arg, dict.d, dict.dsize, dict.end, ilist, tfm, dict.dwords, sa, lcp);
+    din(arg, dict.d, dict.dsize, tfm, dict.dwords, sa, lcp);
+    dout(arg, dict.d, dict.dsize, tfm, dict.dwords, sa, lcp);
     delete[] ilist;
     delete[] dict.d;
     delete[] dict.end;
