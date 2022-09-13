@@ -203,21 +203,20 @@ static void save_update_word(
 
 // prefix free parse of file fnam. w is the window size, p is the modulus
 // use a KR-hash as the word ID that is immediately written to the parse file
-uint64_t process_file(Args &arg, map<uint64_t, word_stats> &wordFreq) {
-    string fnam = arg.inputFileName;
-    FILE *g = open_aux_file(arg.inputFileName.c_str(), "parse_old", "wb");
-    FILE *last_file = open_aux_file(arg.inputFileName.c_str(), "last", "wb");
+uint64_t process_file(string &filename, size_t w, size_t p, map<uint64_t, word_stats> &wordFreq) {
+    FILE *g = open_aux_file(filename.c_str(), "parse_old", "wb");
+    FILE *last_file = open_aux_file(filename.c_str(), "last", "wb");
 
     uint64_t pos = 0;
     assert( IBYTES <= sizeof(pos) );
     string word("");
     word.append(1, Dollar);
-    KR_window krw(arg.w);
+    KR_window krw(w);
     std::string line;
-    ifstream f(fnam);
+    ifstream f(filename);
     if (!f.rdbuf()->is_open()) { // is_open does not work on igzstreams
         perror(__func__);
-        throw new std::runtime_error("Cannot open input file " + fnam);
+        throw new std::runtime_error("Cannot open input file " + filename);
     }
     int c;
     while ((c = f.get()) != EOF) {
@@ -228,13 +227,13 @@ uint64_t process_file(Args &arg, map<uint64_t, word_stats> &wordFreq) {
         }
         word.append(1, c);
         uint64_t hash = krw.addchar(c);
-        if (hash % arg.p == 0) {
-            save_update_word(word, arg.w, wordFreq, g, last_file, NULL, pos);
+        if (hash % p == 0) {
+            save_update_word(word, w, wordFreq, g, last_file, NULL, pos);
         }
     }
     f.close();
-    word.append(arg.w, Dollar);
-    save_update_word(word, arg.w, wordFreq, g, last_file, NULL, pos);
+    word.append(w, Dollar);
+    save_update_word(word, w, wordFreq, g, last_file, NULL, pos);
     if (fclose(last_file) != 0) die("Error closing last file");
     if (fclose(g) != 0) die("Error closing parse file");
     return krw.tot_char;
@@ -429,7 +428,7 @@ size_t compute_sigma(const uint32_t *parse, const size_t psize) {
 
 void calculate_word_frequencies(Args &arg, map<uint64_t, word_stats> &wordFreq) {
     try {
-        process_file(arg, wordFreq);
+        process_file(arg.inputFileName, arg.w, arg.p, wordFreq);
     } catch (const std::bad_alloc &) {
         cout << "Out of memory (parsing phase)... emergency exit\n";
         die("bad alloc exception");
