@@ -242,7 +242,7 @@ void writeDictOcc(Args &arg, map<uint64_t, word_stats> &wfreq, vector<const stri
         const char *word = (*x).data(); // current dictionary word
         size_t len = (*x).size(); // offset and length of word
         assert(len > (size_t)arg.w);
-        for (int i = 0; i < len; i++) {
+        for (size_t i = 0; i < len; i++) {
             dict.push_back(word[i]);
         }
         dict.push_back(EndOfWord);
@@ -265,7 +265,7 @@ void writeDictOcc(Args &arg, map<uint64_t, word_stats> &wfreq, vector<const stri
     if (fclose(fdict) != 0) die("Error closing DICT file");
 }
 
-void remapParse(Args &arg, map<uint64_t, word_stats> &wfreq, vector<uint64_t> &parse, uint32_t *new_parse) {
+void remapParse(map<uint64_t, word_stats> &wfreq, vector<uint64_t> &parse, uint32_t *new_parse) {
     // recompute occ as an extra check
     vector<occ_int_t> occ(wfreq.size() + 1, 0); // ranks are zero based
     uint_t i = 0;
@@ -932,12 +932,11 @@ int main(int argc, char **argv) {
     dictArray.clear(); // reclaim memory
 
     uint32_t *p = new uint32_t[parse.size() + 1];
-    remapParse(arg, wordFreq, parse, p);
+    remapParse(wordFreq, parse, p);
     size_t sigma = compute_sigma(p, parse.size());
     compute_BWT(p, parse.size() + 1, sigma, arg.inputFileName + ".bwt"); // <fn>.bwt
     delete[] p;
 
-    // cache_config config(true, "./", util::basename(arg.inputFileName));
     tfm_index tfm;
     construct_tfm_index(tfm, arg.inputFileName + ".bwt", parse.size() + 1);
 

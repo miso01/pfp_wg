@@ -114,8 +114,8 @@ size_t mfread(void *vptr, size_t size, size_t nmemb, mFile *f) {
 // -------------------------------------
 
 // extract an integer from a length n array containing IBYTES bytes per element
-uint64_t get_myint(uint8_t *a, long n, long i) {
-    assert(i < n);
+uint64_t get_myint(uint8_t *a, long i) {
+    // assert(i < n);
     assert(a != NULL);
     long offset = (i + 1) * IBYTES - 1;
     uint64_t ai = 0;
@@ -133,7 +133,7 @@ void write_myint(uint64_t u, FILE *f) {
 }
 
 // extract an integer as in get_myint and write to file using write_myint
-void get_and_write_myint(uint8_t *a, long n, long i, FILE *f) {
-    uint64_t u = get_myint(a, n, i);
+void get_and_write_myint(uint8_t *a, long i, FILE *f) {
+    uint64_t u = get_myint(a, i);
     write_myint(u, f);
 }

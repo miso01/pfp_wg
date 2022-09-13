@@ -1243,7 +1243,7 @@ void putSubstr1(int_t *SA, int_t *s, int_t n, int cs) {
     SA[0] = n - 1;
 }
 
-uint_t getLengthOfLMS(int_t *s, uint_t n, int level, uint_t x, int cs) {
+uint_t getLengthOfLMS(int_t *s, uint_t n, uint_t x, int cs) {
     if (x == n - 1)
         return 1;
 
@@ -1265,8 +1265,7 @@ uint_t getLengthOfLMS(int_t *s, uint_t n, int level, uint_t x, int cs) {
 }
 
 uint_t nameSubstr(
-    uint_t *SA, int_t *s, uint_t *s1, uint_t n, uint_t m, uint_t n1, int level,
-    int cs
+    uint_t *SA, int_t *s, uint_t *s1, uint_t n, uint_t m, uint_t n1, int cs
 ) {
     uint_t i, j, cur_t, succ_t;
 
@@ -1282,7 +1281,7 @@ uint_t nameSubstr(
         uint_t len, pos = SA[i];
 
         uint_t d;
-        len = getLengthOfLMS(s, n, level, pos, cs);
+        len = getLengthOfLMS(s, n, pos, cs);
         if (len != pre_len)
             diff = true;
         else
@@ -1330,8 +1329,7 @@ uint_t nameSubstr(
 /*****************************************************************************/
 
 uint_t nameSubstr_generalized(
-    uint_t *SA, uint_t *s, uint_t *s1, uint_t n, uint_t m, uint_t n1, int level,
-    int cs, uint_t separator
+    uint_t *SA, uint_t *s, uint_t *s1, uint_t n, uint_t m, uint_t n1, int cs, uint_t separator
 ) {
     uint_t i, j, cur_t, succ_t;
 
@@ -1347,7 +1345,7 @@ uint_t nameSubstr_generalized(
         uint_t len, pos = SA[i];
 
         uint_t d;
-        len = getLengthOfLMS((int_t *)s, n, level, pos, cs);
+        len = getLengthOfLMS((int_t *)s, n, pos, cs);
         if (len != pre_len)
             diff = true;
         else
@@ -1398,7 +1396,7 @@ uint_t nameSubstr_generalized(
 
 uint_t nameSubstr_generalized_LCP(
     uint_t *SA, int_t *LCP, uint_t *s, uint_t *s1, uint_t n, uint_t m,
-    uint_t n1, int level, int cs, uint_t separator
+    uint_t n1, int cs, uint_t separator
 ) {
     uint_t i, j, cur_t, succ_t;
 
@@ -1414,7 +1412,7 @@ uint_t nameSubstr_generalized_LCP(
         uint_t len, pos = SA[i];
 
         uint_t d;
-        len = getLengthOfLMS((int_t *)s, n, level, pos, cs);
+        len = getLengthOfLMS((int_t *)s, n, pos, cs);
         if (len != pre_len)
             diff = true;
         else {
@@ -1467,7 +1465,7 @@ uint_t nameSubstr_generalized_LCP(
 /*****************************************************************************/
 
 void getSAlms(
-    uint_t *SA, int_t *s, uint_t *s1, uint_t n, uint_t n1, int level, int cs
+    int_t *s, uint_t *s1, uint_t n, uint_t n1, int cs
 ) {
     uint_t i, j, cur_t, succ_t;
 
@@ -1485,8 +1483,7 @@ void getSAlms(
 }
 
 void getSAlms_DA(
-    uint_t *SA, int_t *DA, int_t *s, uint_t *s1, uint_t n, uint_t n1, int level,
-    int cs, uint_t separator
+    int_t *DA, int_t *s, uint_t *s1, uint_t n, uint_t n1, int cs, uint_t separator
 ) {
     uint_t i, j, cur_t, succ_t;
 
@@ -1571,7 +1568,7 @@ int_t SACA_K(
 
     uint_t *SA1 = SA, *s1 = SA + m - n1;
     uint_t name_ctr;
-    name_ctr = nameSubstr(SA, s, s1, n, m, n1, level, cs);
+    name_ctr = nameSubstr(SA, s, s1, n, m, n1, cs);
 
 #if PHASES
     if (!level) {
@@ -1599,7 +1596,7 @@ int_t SACA_K(
 
     // stage 3: induce SA(S) from SA(S1).
 
-    getSAlms(SA, s, s1, n, n1, level, cs);
+    getSAlms(s, s1, n, n1, cs);
 
     for (i = 0; i < n1; i++)
         SA[i] = s1[SA[i]];
@@ -1708,7 +1705,7 @@ int_t gSACA_K(
     uint_t *SA1 = SA, *s1 = SA + m - n1;
     uint_t name_ctr;
     name_ctr =
-        nameSubstr_generalized(SA, s, s1, n, m, n1, level, cs, separator);
+        nameSubstr_generalized(SA, s, s1, n, m, n1, cs, separator);
 
 #if PHASES
     printf("phase 1:\n");
@@ -1732,7 +1729,7 @@ int_t gSACA_K(
 
     // stage 3: induce SA(S) from SA(S1).
 
-    getSAlms(SA, (int_t *)s, s1, n, n1, level, cs);
+    getSAlms((int_t *)s, s1, n, n1, cs);
 
     for (i = 0; i < n1; i++)
         SA[i] = s1[SA[i]];
@@ -1886,7 +1883,7 @@ int_t gSACA_K_LCP(
 #endif
 
     name_ctr = nameSubstr_generalized_LCP(
-        SA, LCP, s, s1, n, m, n1, level, cs, separator
+        SA, LCP, s, s1, n, m, n1, cs, separator
     );
 
 #if DEBUG
@@ -1934,7 +1931,7 @@ int_t gSACA_K_LCP(
     printf("\n\n");
 #endif
 
-    getSAlms(SA, (int_t *)s, s1, n, n1, level, cs);
+    getSAlms((int_t *)s, s1, n, n1, cs);
 
 #if DEBUG
     printf("getSAlms:\n");
@@ -2182,7 +2179,7 @@ int_t gSACA_K_DA(
 #endif
 
     name_ctr =
-        nameSubstr_generalized(SA, s, s1, n, m, n1, level, cs, separator);
+        nameSubstr_generalized(SA, s, s1, n, m, n1, cs, separator);
 
 #if DEBUG
     printf("nameSubstr:\n");
@@ -2223,7 +2220,7 @@ int_t gSACA_K_DA(
 
     int_t *d1 = DA + m - n1;
 
-    getSAlms_DA(SA, d1, (int_t *)s, s1, n, n1, level, cs, separator);
+    getSAlms_DA(d1, (int_t *)s, s1, n, n1, cs, separator);
 
 #if DEBUG
     printf("getSAlms:\n");
@@ -2457,7 +2454,7 @@ int_t gSACA_K_LCP_DA(
 #endif
 
     name_ctr = nameSubstr_generalized_LCP(
-        SA, LCP, s, s1, n, m, n1, level, cs, separator
+        SA, LCP, s, s1, n, m, n1, cs, separator
     );
 
 #if DEBUG
@@ -2507,7 +2504,7 @@ int_t gSACA_K_LCP_DA(
 
     int_t *d1 = DA + m - n1;
 
-    getSAlms_DA(SA, d1, (int_t *)s, s1, n, n1, level, cs, separator);
+    getSAlms_DA(d1, (int_t *)s, s1, n, n1, cs, separator);
 
     // FELIPE  getSAlms(SA, (int_t*)s, s1, n, n1, level, cs);
 
