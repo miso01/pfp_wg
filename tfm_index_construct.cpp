@@ -204,18 +204,12 @@ static void save_update_word(
 // prefix free parse of file fnam. w is the window size, p is the modulus
 // use a KR-hash as the word ID that is immediately written to the parse file
 uint64_t process_file(Args &arg, map<uint64_t, word_stats> &wordFreq) {
-    // open a, possibly compressed, input file
     string fnam = arg.inputFileName;
-    // open the 1st pass parsing file
     FILE *g = open_aux_file(arg.inputFileName.c_str(), "parse_old", "wb");
-    // open output file containing the char at position -(w+1) of each word
     FILE *last_file = open_aux_file(arg.inputFileName.c_str(), "last", "wb");
 
-    // main loop on the chars of the input file
-    uint64_t pos = 0; // ending position +1 of previous word in the original
-                      // text, used for computing sa_info
+    uint64_t pos = 0;
     assert( IBYTES <= sizeof(pos) );
-    // init first word in the parsing with a Dollar char
     string word("");
     word.append(1, Dollar);
     KR_window krw(arg.w);
@@ -235,24 +229,14 @@ uint64_t process_file(Args &arg, map<uint64_t, word_stats> &wordFreq) {
         word.append(1, c);
         uint64_t hash = krw.addchar(c);
         if (hash % arg.p == 0) {
-            // end of word, save it and write its full hash to the output
-            // file cerr << "~"<< c << "~ " << hash << " ~~ <" << word << ">
-            // ~~ <" << krw.get_window() << ">" <<  endl;
-            save_update_word(
-                word, arg.w, wordFreq, g, last_file, NULL, pos
-            );
+            save_update_word(word, arg.w, wordFreq, g, last_file, NULL, pos);
         }
     }
     f.close();
-    // virtually add w null chars at the end of the file and add the last word
-    // in the dict
     word.append(arg.w, Dollar);
     save_update_word(word, arg.w, wordFreq, g, last_file, NULL, pos);
-    // close input and output files
     if (fclose(last_file) != 0) die("Error closing last file");
     if (fclose(g) != 0) die("Error closing parse file");
-    if (pos != krw.tot_char + arg.w)
-        cerr << "Pos: " << pos << " tot " << krw.tot_char << endl;
     return krw.tot_char;
 }
 
