@@ -230,20 +230,6 @@ uint64_t process_file(
     word.append(w, Dollar);
     save_update_word(word, w, wordFreq, g_vec, last_vec, pos);
 
-    FILE *g = open_aux_file(filename.c_str(), "parse_old", "wb");
-    for (uint64_t hash : g_vec) {
-        if (fwrite(&hash, sizeof(hash), 1, g) != 1)
-            die("parse write error");
-    }
-    if (fclose(g) != 0) die("Error closing parse file");
-
-    FILE *last_file = open_aux_file(filename.c_str(), "last", "wb");
-    for (char c : last_vec) {
-        if (fputc(c, last_file) == EOF)     // can this happen?
-            die("Error writing to .last file");
-    }
-    if (fclose(last_file) != 0) die("Error closing last file");
-
     return krw.tot_char;
 }
 
@@ -290,10 +276,6 @@ void writeDictOcc(
 }
 
 void remapParse(Args &arg, map<uint64_t, word_stats> &wfreq, vector<uint64_t> &parse) {
-    // open parse files. the old parse can be stored in a single file or in
-    // multiple files
-    //mFile *moldp = mopen_aux_file(arg.inputFileName.c_str(), "parse_old", 0);
-    //FILE *newp = open_aux_file(arg.inputFileName.c_str(), "parse", "wb");
     vector<uint32_t> new_parse{};
 
     // recompute occ as an extra check
@@ -310,9 +292,6 @@ void remapParse(Args &arg, map<uint64_t, word_stats> &wfreq, vector<uint64_t> &p
         if (s != 1) die("Error writing to new parse file");
     }
     if (fclose(newp) != 0) die("Error closing new parse file");
-
-    // if (mfclose(moldp) != 0)
-    //     die("Error closing old parse segment");
 }
 
 void print_help(char **argv, Args &args) {
@@ -918,8 +897,8 @@ int main(int argc, char **argv) {
 
     map<uint64_t, word_stats> wordFreq;
     vector<uint64_t> parse{};
-    vector<char> last{};
-    calculate_word_frequencies(arg.inputFileName, arg.w, arg.p, wordFreq, parse, last); // + <fn>.last <fn>.parse_old
+    vector<char> last{}; // this is maybe not needed
+    calculate_word_frequencies(arg.inputFileName, arg.w, arg.p, wordFreq, parse, last);
 
     // create array of dictionary words
     vector<const string *> dictArray;
@@ -934,7 +913,7 @@ int main(int argc, char **argv) {
     writeDictOcc(arg, wordFreq, dictArray); // + <fn>.dict
     dictArray.clear(); // reclaim memory
 
-    remapParse(arg, wordFreq, parse); // <fn>.parse_old ->  +<fn>.parse
+    remapParse(arg, wordFreq, parse); // + <fn>.parse
 
     // construct tunneled fm index
     tfm_index<> tfm;
