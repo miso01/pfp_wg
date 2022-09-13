@@ -154,10 +154,7 @@ uint64_t kr_hash(string s) {
 
 // save current word in the freq map and update it leaving only the
 // last minsize chars which is the overlap with next word
-static void save_update_word(
-    string &w, unsigned int minsize, map<uint64_t, word_stats> &freq,
-    vector<uint64_t> &parse, vector<char> &last, uint64_t &pos
-) {
+static void save_update_word(string &w, unsigned int minsize, map<uint64_t, word_stats> &freq, vector<uint64_t> &parse, vector<char> &last, uint64_t &pos) {
     assert(pos == 0 || w.size() > minsize);
     if (w.size() <= minsize)
         return;
@@ -197,10 +194,7 @@ static void save_update_word(
 
 // prefix free parse of file fnam. w is the window size, p is the modulus
 // use a KR-hash as the word ID that is immediately written to the parse file
-uint64_t process_file(
-    string &filename, size_t w, size_t p,
-    map<uint64_t, word_stats> &wordFreq, vector<uint64_t> &g_vec, vector<char> &last_vec
-) {
+uint64_t process_file(string &filename, size_t w, size_t p, map<uint64_t, word_stats> &wordFreq, vector<uint64_t> &g_vec, vector<char> &last_vec) {
     uint64_t pos = 0;
     assert( IBYTES <= sizeof(pos) );
     string word("");
@@ -237,10 +231,7 @@ bool pstringCompare(const string *a, const string *b) { return *a <= *b; }
 
 // given the sorted dictionary and the frequency map write the dictionary and
 // occ files also compute the 1-based rank for each hash
-void writeDictOcc(
-    Args &arg, map<uint64_t, word_stats> &wfreq,
-    vector<const string *> &sortedDict
-) {
+void writeDictOcc(Args &arg, map<uint64_t, word_stats> &wfreq, vector<const string *> &sortedDict) {
     assert(sortedDict.size() == wfreq.size());
     // open dictionary and occ files
     vector<char> dict{};
@@ -408,10 +399,7 @@ size_t compute_sigma(const uint32_t *parse, const size_t psize) {
     return (max + 1);
 }
 
-void calculate_word_frequencies(
-    string &filename, size_t w, size_t p, map<uint64_t, word_stats> &wordFreq,
-    vector<uint64_t> &parse, vector<char> &last
-) {
+void calculate_word_frequencies(string &filename, size_t w, size_t p, map<uint64_t, word_stats> &wordFreq, vector<uint64_t> &parse, vector<char> &last) {
     try {
         process_file(filename, w, p, wordFreq, parse, last);
     } catch (const std::bad_alloc &) {
@@ -473,10 +461,7 @@ static int_t getlen(uint_t p, uint_t eos[], long n, uint32_t *seqid) {
 // d[0]=Dollar (0x2) since the first words starts with $. There is another word
 // somewhere ending with Dollar^wEndOfWord (it is the last word in the parsing,
 // but its lex rank is unknown).
-static void compute_dict_bwt_lcp(
-    uint8_t *d, long dsize, long dwords, int w, uint_t **sap, int_t **lcpp
-) // output parameters
-{
+static void compute_dict_bwt_lcp(uint8_t *d, long dsize, long dwords, int w, uint_t **sap, int_t **lcpp) {
     uint_t *sa = new uint_t[dsize];
     int_t *lcp = new int_t[dsize];
     (void)dwords;
@@ -532,12 +517,7 @@ struct SeqId {
 
 bool SeqId::operator<(const SeqId &a) { return *bwtpos > *(a.bwtpos); }
 
-// write to the bwt all the characters preceding a given suffix
-// doing a merge operation if necessary
-static void fwrite_chars_same_suffix(
-    vector<uint32_t> &id2merge, vector<uint8_t> &char2write, tfm_index &tfmp,
-    uint32_t *ilist, FILE *fbwt, long &easy_bwts, long &hard_bwts
-) {
+static void fwrite_chars_same_suffix(vector<uint32_t> &id2merge, vector<uint8_t> &char2write, tfm_index &tfmp, uint32_t *ilist, FILE *fbwt, long &easy_bwts, long &hard_bwts) {
     size_t numwords =
         id2merge.size(); // numwords dictionary words contain the same suffix
     bool samechar = true;
@@ -589,9 +569,7 @@ inline uint8_t get_prev(int w, uint8_t *d, uint64_t *end, uint32_t seqid) {
     return d[end[seqid] - w - 1];
 }
 
-void write_bitvector(
-    FILE *f, bool bit, uint8_t &cnt, uint8_t &buffer, bool hard_write = false
-) {
+void write_bitvector(FILE *f, bool bit, uint8_t &cnt, uint8_t &buffer, bool hard_write = false) {
     buffer |= (bit << (7 - cnt++));
     if (hard_write || (cnt == 8)) {
         if (fputc(buffer, f) == EOF)
@@ -601,19 +579,8 @@ void write_bitvector(
     }
 }
 
-/* *******************************************************************
- * Computation of the final BWT
- *
- * istart[] and islist[] are used together. For each dictionary word i
- * (considered in lexicographic order) for k=istart[i]...istart[i+1]-1
- * ilist[k] contains the ordered positions in BWT(P) containing word i
- * ******************************************************************* */
-void bwt(
-    Args &arg, uint8_t *d, long dsize,
-    uint64_t *end_to_phrase,            // dictionary and its size
-    uint32_t *ilist, tfm_index &tfmp, // ilist, last and their size
-    long dwords, uint_t *sa, int_t *lcp
-) { // starting point in ilist for each word and # words
+void bwt(Args &arg, uint8_t *d, long dsize, uint64_t *end_to_phrase, uint32_t *ilist, tfm_index &tfmp, long dwords, uint_t *sa, int_t *lcp) {
+    // starting point in ilist for each word and # words
 
     // set d[0]==0 as this is the EOF char in the final BWT
     assert(d[0] == Dollar);
@@ -697,10 +664,8 @@ void bwt(
     fclose(fbwt);
 }
 
-void din(
-    Args &arg, uint8_t *d, long dsize, // dictionary and its size
-    tfm_index &tfmp, long dwords, uint_t *sa, int_t *lcp
-) { // starting point in ilist for each word and # words
+void din(Args &arg, uint8_t *d, long dsize, tfm_index &tfmp, long dwords, uint_t *sa, int_t *lcp) {
+    // starting point in ilist for each word and # words
 
     // derive eos from sa. for i=0...dwords-1, eos[i] is the eos position of
     // string i in d
@@ -759,11 +724,7 @@ void din(
     fclose(fdin);
 }
 
-void dout(
-    Args &arg, uint8_t *d, long dsize, // dictionary and its size
-    tfm_index &tfmp, long dwords, uint_t *sa, int_t *lcp
-) { // starting point in ilist for each word and # words
-
+void dout(Args &arg, uint8_t *d, long dsize, tfm_index &tfmp, long dwords, uint_t *sa, int_t *lcp) {
     // derive eos from sa. for i=0...dwords-1, eos[i] is the eos position of
     // string i in d
     uint_t *eos = sa + 1;
@@ -883,6 +844,96 @@ void generate_ilist(uint32_t *ilist, tfm_index &tfmp, uint64_t dwords) {
     }
 }
 
+void construct_tfm_index(tfm_index &tfm_index, const std::string filename, size_t psize, sdsl::cache_config &config) {
+    // construct a wavelet tree out of the BWT
+    sdsl::int_vector_buffer<> L(filename, std::ios::in, psize, 32, true);
+    sdsl::wt_blcd_int<> wt_L = sdsl::wt_blcd_int<>(L, psize);
+
+    std::vector<uint64_t> C = std::vector<uint64_t>(wt_L.sigma + 1, 0);
+    for (uint64_t i = 0; i < psize; i++)
+        C[L[i] + 1] += 1;
+    for (uint64_t i = 0; i < wt_L.sigma; i++)
+        C[i + 1] += C[i];
+
+    typedef tfm_index::size_type size_type;
+    std::pair<size_type, size_type> dbg_res;
+
+    // find minimal edge-reduced DBG and store kmer bounds in a bitvector B
+    sdsl::bit_vector B;
+    {
+        auto event = sdsl::memory_monitor::event("FINDMINDBG");
+        dbg_res = dbg_algorithms::find_min_dbg(wt_L, C, B, config);
+    }
+
+    // use bitvector to determine prefix intervals to be tunneled
+    auto event = sdsl::memory_monitor::event("TFMINDEXCONSTRUCT");
+    sdsl::bit_vector dout = B;
+    sdsl::bit_vector din;
+    std::swap(din, B);
+    dbg_algorithms::mark_prefix_intervals(wt_L, C, dout, din);
+
+    // create a buffer for newly constructed L
+    std::string tmp_key = sdsl::util::to_string(sdsl::util::pid()) + "_" +
+                          sdsl::util::to_string(sdsl::util::id());
+    std::string tmp_file_name = sdsl::cache_file_name(tmp_key, config);
+    {
+        sdsl::int_vector_buffer<> L_buf(tmp_file_name, std::ios::out);
+
+        // remove redundant entries from L, dout and din
+        size_type p = 0;
+        size_type q = 0;
+        for (size_type i = 0; i < wt_L.size(); i++) {
+            if (din[i] == 1) {
+                L_buf.push_back(wt_L[i]);
+                dout[p++] = dout[i];
+            }
+            if (dout[i] == 1) {
+                din[q++] = din[i];
+            }
+        }
+        dout[p++] = 1;
+        din[q++] = 1;
+        dout.resize(p);
+        din.resize(q);
+
+        construct_tfm_index(
+            tfm_index, psize, std::move(L_buf), std::move(dout), std::move(din)
+        );
+    }
+    // remove buffer for L
+    sdsl::remove(tmp_file_name);
+}
+
+void symbol_frequencies(std::vector<uint64_t> &C, sdsl::int_vector_buffer<> &L, uint64_t sigma) {
+    C = std::vector<uint64_t>(sigma + 1, 0);
+    for (uint64_t i = 0; i < L.size(); i++)
+        C[L[i] + 1] += 1;
+    for (uint64_t i = 0; i < sigma; i++)
+        C[i + 1] += C[i];
+}
+
+void construct_tfm_index(tfm_index &tfm_index, uint64_t text_len, sdsl::int_vector_buffer<> &&L_buf, sdsl::bit_vector &&dout, sdsl::bit_vector &&din) {
+    // set original string size
+    tfm_index.text_len = text_len;
+
+    // construct tfm index from L, din and dout
+    typedef tfm_index::wt_type wt_type;
+    typedef tfm_index::bit_vector_type bv_type;
+
+    // wavelet tree of L
+    tfm_index.m_L = wt_type(L_buf, L_buf.size());
+    symbol_frequencies(tfm_index.m_C, L_buf, tfm_index.m_L.sigma);
+
+    // dout
+    tfm_index.m_dout = bv_type(std::move(dout));
+    // sdsl::util::init_support(tfm_index.m_dout_rank, &tfm_index.m_dout);
+    sdsl::util::init_support(tfm_index.m_dout_select, &tfm_index.m_dout);
+
+    // din
+    tfm_index.m_din = bv_type(std::move(din));
+    sdsl::util::init_support(tfm_index.m_din_rank, &tfm_index.m_din);
+    // sdsl::util::init_support(tfm_index.m_din_select, &tfm_index.m_din);
+}
 
 int main(int argc, char **argv) {
     Args arg;
