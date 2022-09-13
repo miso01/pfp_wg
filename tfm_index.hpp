@@ -46,11 +46,8 @@ class tfm_index {
     typedef std::pair<size_type, size_type> nav_type;
 
   private:
-    friend void construct_tfm_index(
-        tfm_index &tfm_index, uint64_t text_len,
-        sdsl::int_vector_buffer<> &&L_buf, sdsl::bit_vector &&dout,
-        sdsl::bit_vector &&din
-    );
+
+    friend void construct_tfm_index(tfm_index &tfm_index, const std::string filename, size_t psize);
 
     // constructor for gSACAK
     friend void construct_tfm_index(

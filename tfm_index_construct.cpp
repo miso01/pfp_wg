@@ -844,9 +844,15 @@ void generate_ilist(uint32_t *ilist, tfm_index &tfmp, uint64_t dwords) {
     }
 }
 
+void symbol_frequencies(std::vector<uint64_t> &C, sdsl::int_vector_buffer<> &L, uint64_t sigma) {
+    C = std::vector<uint64_t>(sigma + 1, 0);
+    for (uint64_t i = 0; i < L.size(); i++)
+        C[L[i] + 1] += 1;
+    for (uint64_t i = 0; i < sigma; i++)
+        C[i + 1] += C[i];
+}
+
 void construct_tfm_index(tfm_index &tfm_index, const std::string filename, size_t psize) {
-    // string filename = "tmp.bwt";
-    // construct a wavelet tree out of the BWT
     sdsl::int_vector_buffer<> L(filename, std::ios::in, psize, 32, true);
     sdsl::wt_blcd_int<> wt_L = sdsl::wt_blcd_int<>(L, psize);
 
@@ -861,26 +867,18 @@ void construct_tfm_index(tfm_index &tfm_index, const std::string filename, size_
 
     sdsl::bit_vector B;
     {
-        // auto event = sdsl::memory_monitor::event("FINDMINDBG");
         dbg_res = dbg_algorithms::find_min_dbg(wt_L, C, B);
     }
 
-    // use bitvector to determine prefix intervals to be tunneled
-    // auto event = sdsl::memory_monitor::event("TFMINDEXCONSTRUCT");
     sdsl::bit_vector dout = B;
     sdsl::bit_vector din;
     std::swap(din, B);
     dbg_algorithms::mark_prefix_intervals(wt_L, C, dout, din);
 
-    // create a buffer for newly constructed L
-    // std::string tmp_key = sdsl::util::to_string(sdsl::util::pid()) + "_" +
-    //                       sdsl::util::to_string(sdsl::util::id());
-    // std::string tmp_file_name = sdsl::cache_file_name(tmp_key, config);
     string tmp_file_name = "construct_tfm_index.tmp";
     {
         sdsl::int_vector_buffer<> L_buf(tmp_file_name, std::ios::out);
 
-        // remove redundant entries from L, dout and din
         size_type p = 0;
         size_type q = 0;
         for (size_type i = 0; i < wt_L.size(); i++) {
@@ -897,43 +895,18 @@ void construct_tfm_index(tfm_index &tfm_index, const std::string filename, size_
         dout.resize(p);
         din.resize(q);
 
-        construct_tfm_index(
-            tfm_index, psize, std::move(L_buf), std::move(dout), std::move(din)
-        );
+        tfm_index.text_len = psize;
+
+        tfm_index.m_L = tfm_index::wt_type(L_buf, L_buf.size());
+        symbol_frequencies(tfm_index.m_C, L_buf, tfm_index.m_L.sigma);
+
+        tfm_index.m_dout = tfm_index::bit_vector_type(std::move(dout));
+        sdsl::util::init_support(tfm_index.m_dout_select, &tfm_index.m_dout);
+
+        tfm_index.m_din = tfm_index::bit_vector_type(std::move(din));
+        sdsl::util::init_support(tfm_index.m_din_rank, &tfm_index.m_din);
     }
-    // remove buffer for L
     sdsl::remove(tmp_file_name);
-}
-
-void symbol_frequencies(std::vector<uint64_t> &C, sdsl::int_vector_buffer<> &L, uint64_t sigma) {
-    C = std::vector<uint64_t>(sigma + 1, 0);
-    for (uint64_t i = 0; i < L.size(); i++)
-        C[L[i] + 1] += 1;
-    for (uint64_t i = 0; i < sigma; i++)
-        C[i + 1] += C[i];
-}
-
-void construct_tfm_index(tfm_index &tfm_index, uint64_t text_len, sdsl::int_vector_buffer<> &&L_buf, sdsl::bit_vector &&dout, sdsl::bit_vector &&din) {
-    // set original string size
-    tfm_index.text_len = text_len;
-
-    // construct tfm index from L, din and dout
-    typedef tfm_index::wt_type wt_type;
-    typedef tfm_index::bit_vector_type bv_type;
-
-    // wavelet tree of L
-    tfm_index.m_L = wt_type(L_buf, L_buf.size());
-    symbol_frequencies(tfm_index.m_C, L_buf, tfm_index.m_L.sigma);
-
-    // dout
-    tfm_index.m_dout = bv_type(std::move(dout));
-    // sdsl::util::init_support(tfm_index.m_dout_rank, &tfm_index.m_dout);
-    sdsl::util::init_support(tfm_index.m_dout_select, &tfm_index.m_dout);
-
-    // din
-    tfm_index.m_din = bv_type(std::move(din));
-    sdsl::util::init_support(tfm_index.m_din_rank, &tfm_index.m_din);
-    // sdsl::util::init_support(tfm_index.m_din_select, &tfm_index.m_din);
 }
 
 int main(int argc, char **argv) {
