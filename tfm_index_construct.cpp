@@ -198,10 +198,10 @@ static void save_update_word(
 
 // prefix free parse of file fnam. w is the window size, p is the modulus
 // use a KR-hash as the word ID that is immediately written to the parse file
-uint64_t process_file(string &filename, size_t w, size_t p, map<uint64_t, word_stats> &wordFreq) {
-    vector<uint64_t> g_vec{};
-    vector<char> last_vec{};
-
+uint64_t process_file(
+    string &filename, size_t w, size_t p,
+    map<uint64_t, word_stats> &wordFreq, vector<uint64_t> &g_vec, vector<char> &last_vec
+) {
     uint64_t pos = 0;
     assert( IBYTES <= sizeof(pos) );
     string word("");
@@ -434,9 +434,12 @@ size_t compute_sigma(const uint32_t *parse, const size_t psize) {
     return (max + 1);
 }
 
-void calculate_word_frequencies(Args &arg, map<uint64_t, word_stats> &wordFreq) {
+void calculate_word_frequencies(
+    string &filename, size_t w, size_t p, map<uint64_t, word_stats> &wordFreq,
+    vector<uint64_t> &parse, vector<char> &last
+) {
     try {
-        process_file(arg.inputFileName, arg.w, arg.p, wordFreq);
+        process_file(filename, w, p, wordFreq, parse, last);
     } catch (const std::bad_alloc &) {
         cout << "Out of memory (parsing phase)... emergency exit\n";
         die("bad alloc exception");
@@ -912,7 +915,9 @@ int main(int argc, char **argv) {
     parseArgs(argc, argv, arg);
 
     map<uint64_t, word_stats> wordFreq;
-    calculate_word_frequencies(arg, wordFreq); // + <fn>.last <fn>.parse_old
+    vector<uint64_t> parse{};
+    vector<char> last{};
+    calculate_word_frequencies(arg.inputFileName, arg.w, arg.p, wordFreq, parse, last); // + <fn>.last <fn>.parse_old
 
     // create array of dictionary words
     vector<const string *> dictArray;
@@ -934,10 +939,10 @@ int main(int argc, char **argv) {
 
     cache_config config(true, "./", util::basename(arg.inputFileName));
     size_t psize;
-    uint32_t *parse = load_parse(arg.inputFileName + ".parse", psize);
-    size_t sigma = compute_sigma(parse, psize);
-    compute_BWT(parse, psize + 1, sigma, arg.inputFileName + ".bwt"); // <fn>.bwt
-    delete parse;
+    uint32_t *p = load_parse(arg.inputFileName + ".parse", psize);
+    size_t sigma = compute_sigma(p, psize);
+    compute_BWT(p, psize + 1, sigma, arg.inputFileName + ".bwt"); // <fn>.bwt
+    delete p;
 
     construct_tfm_index(tfm, arg.inputFileName + ".bwt", psize + 1, config);
 
