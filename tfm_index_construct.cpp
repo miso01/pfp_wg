@@ -535,7 +535,7 @@ bool SeqId::operator<(const SeqId &a) { return *bwtpos > *(a.bwtpos); }
 // write to the bwt all the characters preceding a given suffix
 // doing a merge operation if necessary
 static void fwrite_chars_same_suffix(
-    vector<uint32_t> &id2merge, vector<uint8_t> &char2write, tfm_index<> &tfmp,
+    vector<uint32_t> &id2merge, vector<uint8_t> &char2write, tfm_index &tfmp,
     uint32_t *ilist, FILE *fbwt, long &easy_bwts, long &hard_bwts
 ) {
     size_t numwords =
@@ -611,7 +611,7 @@ void write_bitvector(
 void bwt(
     Args &arg, uint8_t *d, long dsize,
     uint64_t *end_to_phrase,            // dictionary and its size
-    uint32_t *ilist, tfm_index<> &tfmp, // ilist, last and their size
+    uint32_t *ilist, tfm_index &tfmp, // ilist, last and their size
     long dwords, uint_t *sa, int_t *lcp
 ) { // starting point in ilist for each word and # words
 
@@ -699,7 +699,7 @@ void bwt(
 
 void din(
     Args &arg, uint8_t *d, long dsize, // dictionary and its size
-    tfm_index<> &tfmp, long dwords, uint_t *sa, int_t *lcp
+    tfm_index &tfmp, long dwords, uint_t *sa, int_t *lcp
 ) { // starting point in ilist for each word and # words
 
     // derive eos from sa. for i=0...dwords-1, eos[i] is the eos position of
@@ -761,7 +761,7 @@ void din(
 
 void dout(
     Args &arg, uint8_t *d, long dsize, // dictionary and its size
-    tfm_index<> &tfmp, long dwords, uint_t *sa, int_t *lcp
+    tfm_index &tfmp, long dwords, uint_t *sa, int_t *lcp
 ) { // starting point in ilist for each word and # words
 
     // derive eos from sa. for i=0...dwords-1, eos[i] is the eos position of
@@ -868,7 +868,7 @@ Dict read_dictionary(const char *filename) {
     return res;
 }
 
-void generate_ilist(uint32_t *ilist, tfm_index<> &tfmp, uint64_t dwords) {
+void generate_ilist(uint32_t *ilist, tfm_index &tfmp, uint64_t dwords) {
     vector<vector<uint32_t>> phrase_sources(dwords);
     for (uint64_t i = 0; i < tfmp.L.size(); i++) {
         uint32_t act_char = tfmp.L[i];
@@ -906,16 +906,14 @@ int main(int argc, char **argv) {
     writeDictOcc(arg, wordFreq, dictArray); // + <fn>.dict
     dictArray.clear(); // reclaim memory
 
-    // size_t psize;
     uint32_t *p = new uint32_t[parse.size() + 1];
-    remapParse(arg, wordFreq, parse, p); // + <fn>.parse
-    // p = load_parse(arg.inputFileName + ".parse", psize);
+    remapParse(arg, wordFreq, parse, p);
     size_t sigma = compute_sigma(p, parse.size());
     compute_BWT(p, parse.size() + 1, sigma, arg.inputFileName + ".bwt"); // <fn>.bwt
     delete[] p;
 
     cache_config config(true, "./", util::basename(arg.inputFileName));
-    tfm_index<> tfm;
+    tfm_index tfm;
     construct_tfm_index(tfm, arg.inputFileName + ".bwt", parse.size() + 1, config);
 
 //-------------------------------------------------------------------------------

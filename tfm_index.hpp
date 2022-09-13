@@ -28,12 +28,6 @@ typedef uint32_t sa_index_t;
 struct tfm_index_tag {};
 
 //! a class representing a tunneled fm-index
-template <
-    class t_wt_type = sdsl::wt_blcd_int<>, // wt_int and wt_blcd_int can be used
-                                           // interchangeably
-    class t_bv_type = typename t_wt_type::bit_vector_type,
-    class t_rank_type = typename t_bv_type::rank_1_type,
-    class t_select_type = typename t_bv_type::select_1_type>
 class tfm_index {
   public:
     typedef tfm_index_tag index_category;
@@ -41,12 +35,12 @@ class tfm_index {
     typedef sdsl::int_vector<>::size_type size_type;
 
     typedef sdsl::int_vector<> text_type;
-    typedef typename t_wt_type::value_type value_type;
+    typedef sdsl::wt_blcd_int<>::value_type value_type;
 
-    typedef t_wt_type wt_type;
-    typedef t_bv_type bit_vector_type;
-    typedef t_rank_type rank_type;
-    typedef t_select_type select_type;
+    typedef sdsl::wt_blcd_int<> wt_type;
+    typedef sdsl::wt_blcd_int<>::bit_vector_type bit_vector_type;
+    typedef sdsl::wt_blcd_int<>::bit_vector_type::rank_1_type rank_type;
+    typedef sdsl::wt_blcd_int<>::bit_vector_type::select_1_type select_type;
 
     // first index is next outgoing edge, second index is tunnel entry offset
     typedef std::pair<size_type, size_type> nav_type;
@@ -361,8 +355,8 @@ void construct_from_pfwg(
     ); // one additional bit at the end
     load_bitvector(dout, basename + ".dout", size + 1);
 
-    typedef ::tfm_index<>::wt_type wt_type;
-    typedef ::tfm_index<>::bit_vector_type bv_type;
+    typedef ::tfm_index::wt_type wt_type;
+    typedef ::tfm_index::bit_vector_type bv_type;
 
     tfm_index.text_len = original.size();
     sdsl::int_vector_buffer<> buf(basename + ".L", std::ios::in, size, 8, true);

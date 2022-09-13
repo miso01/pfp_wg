@@ -27,7 +27,7 @@ int main(int argc, char **argv) {
     }
 
     // load tunneled fm index
-    tfm_index<> tfm;
+    tfm_index tfm;
     construct_from_pfwg(tfm, argv[1]);
 
     char *S = new char[tfm.size()];
