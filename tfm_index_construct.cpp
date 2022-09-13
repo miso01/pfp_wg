@@ -289,28 +289,30 @@ void writeDictOcc(
     if (fclose(fdict) != 0) die("Error closing DICT file");
 }
 
-void remapParse(Args &arg, map<uint64_t, word_stats> &wfreq) {
+void remapParse(Args &arg, map<uint64_t, word_stats> &wfreq, vector<uint64_t> &parse) {
     // open parse files. the old parse can be stored in a single file or in
     // multiple files
-    mFile *moldp = mopen_aux_file(arg.inputFileName.c_str(), "parse_old", 0);
-    FILE *newp = open_aux_file(arg.inputFileName.c_str(), "parse", "wb");
+    //mFile *moldp = mopen_aux_file(arg.inputFileName.c_str(), "parse_old", 0);
+    //FILE *newp = open_aux_file(arg.inputFileName.c_str(), "parse", "wb");
+    vector<uint32_t> new_parse{};
 
     // recompute occ as an extra check
     vector<occ_int_t> occ(wfreq.size() + 1, 0); // ranks are zero based
-    uint64_t hash;
-    while (true) {
-        size_t s = mfread(&hash, sizeof(hash), 1, moldp);
-        if (s == 0) break;
-        if (s != 1) die("Unexpected parse EOF");
+    for (uint64_t hash : parse) {
         word_int_t rank = wfreq.at(hash).rank;
         occ[rank]++;
-        s = fwrite(&rank, sizeof(rank), 1, newp);
+        new_parse.push_back(rank);
+    }
+
+    FILE *newp = open_aux_file(arg.inputFileName.c_str(), "parse", "wb");
+    for (auto rank : new_parse) {
+        size_t s = fwrite(&rank, sizeof(rank), 1, newp);
         if (s != 1) die("Error writing to new parse file");
     }
-    if (fclose(newp) != 0)
-        die("Error closing new parse file");
-    if (mfclose(moldp) != 0)
-        die("Error closing old parse segment");
+    if (fclose(newp) != 0) die("Error closing new parse file");
+
+    // if (mfclose(moldp) != 0)
+    //     die("Error closing old parse segment");
 }
 
 void print_help(char **argv, Args &args) {
@@ -928,11 +930,11 @@ int main(int argc, char **argv) {
     }
     assert(dictArray.size() == totDWord);
     sort(dictArray.begin(), dictArray.end(), pstringCompare);
-    // write plain dictionary and occ file, also compute rank for each hash
-    writeDictOcc(arg, wordFreq, dictArray); // + <fn>.dict <fn>.occ
+    // write plain dictionary, also compute rank for each hash
+    writeDictOcc(arg, wordFreq, dictArray); // + <fn>.dict
     dictArray.clear(); // reclaim memory
 
-    remapParse(arg, wordFreq); // <fn>.parse_old ->  +<fn>.parse
+    remapParse(arg, wordFreq, parse); // <fn>.parse_old ->  +<fn>.parse
 
     // construct tunneled fm index
     tfm_index<> tfm;
