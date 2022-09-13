@@ -124,14 +124,6 @@ struct KR_window {
         // cerr << get_window() << " ~~ " << window << " --> " << hash << endl;
         return hash;
     }
-    // debug only
-    string get_window() {
-        string w = "";
-        int k = (tot_char - 1) % wsize;
-        for (int i = k + 1; i < k + 1 + wsize; i++)
-            w.append(1, window[i % wsize]);
-        return w;
-    }
 
     ~KR_window() { delete[] window; }
 };
@@ -336,18 +328,6 @@ void parseArgs(int argc, char **argv, Args &arg) {
 // symbols)
 typedef uint_t sa_index_t;
 
-void printUsage(char **argv) {
-    cerr << "USAGE: " << argv[0] << " INFILE TFMOUTFILE" << endl;
-    cerr << "INFILE:" << endl;
-    cerr << "  Parse file to construct tunneled FM index from, nullbytes are "
-            "permitted"
-         << endl;
-    cerr << "TFMOUTFILE:" << endl;
-    cerr
-        << "  File where to store the serialized tunneled FM index of the parse"
-        << endl;
-};
-
 void compute_BWT(uint32_t *Text, long n, long k, string filename) {
     sa_index_t *SA = (sa_index_t *)malloc(n * sizeof(*SA));
     // sacak_int(Text, SA, n, k);
@@ -368,26 +348,6 @@ void compute_BWT(uint32_t *Text, long n, long k, string filename) {
     FILE *fout = fopen(filename.c_str(), "wb");
     fwrite(BWTsa, sizeof(BWTsa[0]), n, fout);
     fclose(fout);
-}
-
-uint32_t *load_parse(const string &infile, size_t &psize) {
-    FILE *fp = fopen(infile.c_str(), "r");
-
-    fseek(fp, 0, SEEK_END);
-    size_t n;
-    n = ftell(fp);
-    fseek(fp, 0, SEEK_SET);
-    n = n / 4;
-    psize = n;
-
-    uint32_t *parse = new uint32_t[n + 1];
-    size_t s = fread(parse, sizeof(*parse), n, fp);
-    if (s != n) {
-        printf("Parse loading error!");
-        exit(1);
-    }
-    parse[n] = 0; // sacak needs this
-    return parse;
 }
 
 size_t compute_sigma(const uint32_t *parse, const size_t psize) {
