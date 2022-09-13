@@ -281,20 +281,12 @@ void writeDictOcc(
     }
     dict.push_back(EndOfDict);
 
-
     FILE *fdict = open_aux_file(arg.inputFileName.c_str(), "dict", "wb");
     for (auto c : dict) {
         if (fputc(c, fdict) == EOF)
             die("Error writing to DICT file");
     }
     if (fclose(fdict) != 0) die("Error closing DICT file");
-
-    FILE *focc = open_aux_file(arg.inputFileName.c_str(), "occ", "wb");
-    for (auto occ : vocc) {
-        size_t s = fwrite(&occ, sizeof(occ), 1, focc); // wf.occ is uint32_t
-        if (s != 1) die("Error writing to OCC file");
-    }
-    if (fclose(focc) != 0) die("Error closing OCC file");
 }
 
 void remapParse(Args &arg, map<uint64_t, word_stats> &wfreq) {
@@ -940,7 +932,7 @@ int main(int argc, char **argv) {
     writeDictOcc(arg, wordFreq, dictArray); // + <fn>.dict <fn>.occ
     dictArray.clear(); // reclaim memory
 
-    remapParse(arg, wordFreq); // + <fn>.parse
+    remapParse(arg, wordFreq); // <fn>.parse_old ->  +<fn>.parse
 
     // construct tunneled fm index
     tfm_index<> tfm;
