@@ -844,7 +844,8 @@ void generate_ilist(uint32_t *ilist, tfm_index &tfmp, uint64_t dwords) {
     }
 }
 
-void construct_tfm_index(tfm_index &tfm_index, const std::string filename, size_t psize, sdsl::cache_config &config) {
+void construct_tfm_index(tfm_index &tfm_index, const std::string filename, size_t psize) {
+    // string filename = "tmp.bwt";
     // construct a wavelet tree out of the BWT
     sdsl::int_vector_buffer<> L(filename, std::ios::in, psize, 32, true);
     sdsl::wt_blcd_int<> wt_L = sdsl::wt_blcd_int<>(L, psize);
@@ -858,24 +859,24 @@ void construct_tfm_index(tfm_index &tfm_index, const std::string filename, size_
     typedef tfm_index::size_type size_type;
     std::pair<size_type, size_type> dbg_res;
 
-    // find minimal edge-reduced DBG and store kmer bounds in a bitvector B
     sdsl::bit_vector B;
     {
-        auto event = sdsl::memory_monitor::event("FINDMINDBG");
-        dbg_res = dbg_algorithms::find_min_dbg(wt_L, C, B, config);
+        // auto event = sdsl::memory_monitor::event("FINDMINDBG");
+        dbg_res = dbg_algorithms::find_min_dbg(wt_L, C, B);
     }
 
     // use bitvector to determine prefix intervals to be tunneled
-    auto event = sdsl::memory_monitor::event("TFMINDEXCONSTRUCT");
+    // auto event = sdsl::memory_monitor::event("TFMINDEXCONSTRUCT");
     sdsl::bit_vector dout = B;
     sdsl::bit_vector din;
     std::swap(din, B);
     dbg_algorithms::mark_prefix_intervals(wt_L, C, dout, din);
 
     // create a buffer for newly constructed L
-    std::string tmp_key = sdsl::util::to_string(sdsl::util::pid()) + "_" +
-                          sdsl::util::to_string(sdsl::util::id());
-    std::string tmp_file_name = sdsl::cache_file_name(tmp_key, config);
+    // std::string tmp_key = sdsl::util::to_string(sdsl::util::pid()) + "_" +
+    //                       sdsl::util::to_string(sdsl::util::id());
+    // std::string tmp_file_name = sdsl::cache_file_name(tmp_key, config);
+    string tmp_file_name = "construct_tfm_index.tmp";
     {
         sdsl::int_vector_buffer<> L_buf(tmp_file_name, std::ios::out);
 
@@ -963,9 +964,9 @@ int main(int argc, char **argv) {
     compute_BWT(p, parse.size() + 1, sigma, arg.inputFileName + ".bwt"); // <fn>.bwt
     delete[] p;
 
-    cache_config config(true, "./", util::basename(arg.inputFileName));
+    // cache_config config(true, "./", util::basename(arg.inputFileName));
     tfm_index tfm;
-    construct_tfm_index(tfm, arg.inputFileName + ".bwt", parse.size() + 1, config);
+    construct_tfm_index(tfm, arg.inputFileName + ".bwt", parse.size() + 1);
 
 //-------------------------------------------------------------------------------
 

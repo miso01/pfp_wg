@@ -82,7 +82,7 @@ class dbg_algorithms {
     // minimal amount of edges.
     static std::pair<size_type, size_type> find_min_dbg(
         const sdsl::wt_blcd_int<> &csa, const std::vector<uint64_t> &C,
-        sdsl::bit_vector &B, sdsl::cache_config &config
+        sdsl::bit_vector &B
     ) {
         // prepare bitvector B
         // initialize B
@@ -90,9 +90,7 @@ class dbg_algorithms {
         sdsl::util::set_to_value(B, 0);
 
         // prepare buffer with node bounds
-        std::string tmp_key = sdsl::util::to_string(sdsl::util::pid()) + "_" +
-                              sdsl::util::to_string(sdsl::util::id());
-        std::string tmp_file_name = sdsl::cache_file_name(tmp_key, config);
+        std::string tmp_file_name = "find_min_dbg.tmp";
         sdsl::int_vector_buffer<> nb_buffer(tmp_file_name, std::ios::out);
 
         auto result = minimize_dbg_edges<true>(
