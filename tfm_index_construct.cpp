@@ -258,35 +258,43 @@ void writeDictOcc(
 ) {
     assert(sortedDict.size() == wfreq.size());
     // open dictionary and occ files
-    FILE *fdict = open_aux_file(arg.inputFileName.c_str(), "dict", "wb");
-    FILE *focc = open_aux_file(arg.inputFileName.c_str(), "occ", "wb");
+    vector<char> dict{};
+    vector<uint32_t> vocc{};
 
     word_int_t wrank = 1; // current word rank (1 based)
     for (auto x : sortedDict) {
         const char *word = (*x).data(); // current dictionary word
-        int offset = 0;
         size_t len = (*x).size(); // offset and length of word
         assert(len > (size_t)arg.w);
-        size_t s = fwrite(word + offset, 1, len, fdict);
-        if (s != len)
-            die("Error writing to DICT file");
-        if (fputc(EndOfWord, fdict) == EOF)
-            die("Error writing EndOfWord to DICT file");
+        for (int i = 0; i < len; i++) {
+            dict.push_back(word[i]);
+        }
+        dict.push_back(EndOfWord);
+
         uint64_t hash = kr_hash(*x);
-        auto &wf = wfreq.at(hash);
+        struct word_stats &wf = wfreq.at(hash);
         assert(wf.occ > 0);
-        s = fwrite(&wf.occ, sizeof(wf.occ), 1, focc);
-        if (s != 1)
-            die("Error writing to OCC file");
+        vocc.push_back(wf.occ);
+
         assert(wf.rank == 0);
         wf.rank = wrank++;
     }
-    if (fputc(EndOfDict, fdict) == EOF)
-        die("Error writing EndOfDict to DICT file");
-    if (fclose(focc) != 0)
-        die("Error closing OCC file");
-    if (fclose(fdict) != 0)
-        die("Error closing DICT file");
+    dict.push_back(EndOfDict);
+
+
+    FILE *fdict = open_aux_file(arg.inputFileName.c_str(), "dict", "wb");
+    for (auto c : dict) {
+        if (fputc(c, fdict) == EOF)
+            die("Error writing to DICT file");
+    }
+    if (fclose(fdict) != 0) die("Error closing DICT file");
+
+    FILE *focc = open_aux_file(arg.inputFileName.c_str(), "occ", "wb");
+    for (auto occ : vocc) {
+        size_t s = fwrite(&occ, sizeof(occ), 1, focc); // wf.occ is uint32_t
+        if (s != 1) die("Error writing to OCC file");
+    }
+    if (fclose(focc) != 0) die("Error closing OCC file");
 }
 
 void remapParse(Args &arg, map<uint64_t, word_stats> &wfreq) {
