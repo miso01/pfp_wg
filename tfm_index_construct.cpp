@@ -157,15 +157,14 @@ uint64_t kr_hash(string s) {
 // last minsize chars which is the overlap with next word
 static void save_update_word(
     string &w, unsigned int minsize, map<uint64_t, word_stats> &freq,
-    FILE *tmp_parse_file, FILE *last, FILE *sa, uint64_t &pos
+    vector<uint64_t> &parse, vector<char> &last, uint64_t &pos
 ) {
     assert(pos == 0 || w.size() > minsize);
     if (w.size() <= minsize)
         return;
     // get the hash value and write it to the temporary parse file
     uint64_t hash = kr_hash(w);
-    if (fwrite(&hash, sizeof(hash), 1, tmp_parse_file) != 1)
-        die("parse write error");
+    parse.push_back(hash);
 
     // update frequency table for current hash
     if (freq.find(hash) == freq.end()) {
@@ -186,17 +185,13 @@ static void save_update_word(
         }
     }
     // output char w+1 from the end
-    if (fputc(w[w.size() - minsize - 1], last) == EOF)
-        die("Error writing to .last file");
+    last.push_back(w[w.size() - minsize - 1]);
     // compute ending position +1 of current word and write it to sa file
     // pos is the ending position+1 of the previous word and is updated here
     if (pos == 0)
         pos = w.size() - 1; // -1 is for the initial $ of the first word
     else
         pos += w.size() - minsize;
-    if (sa)
-        if (fwrite(&pos, IBYTES, 1, sa) != 1)
-            die("Error writing to sa info file");
     // keep only the overlapping part of the window
     w.erase(0, w.size() - minsize);
 }
@@ -204,8 +199,8 @@ static void save_update_word(
 // prefix free parse of file fnam. w is the window size, p is the modulus
 // use a KR-hash as the word ID that is immediately written to the parse file
 uint64_t process_file(string &filename, size_t w, size_t p, map<uint64_t, word_stats> &wordFreq) {
-    FILE *g = open_aux_file(filename.c_str(), "parse_old", "wb");
-    FILE *last_file = open_aux_file(filename.c_str(), "last", "wb");
+    vector<uint64_t> g_vec{};
+    vector<char> last_vec{};
 
     uint64_t pos = 0;
     assert( IBYTES <= sizeof(pos) );
@@ -228,14 +223,27 @@ uint64_t process_file(string &filename, size_t w, size_t p, map<uint64_t, word_s
         word.append(1, c);
         uint64_t hash = krw.addchar(c);
         if (hash % p == 0) {
-            save_update_word(word, w, wordFreq, g, last_file, NULL, pos);
+            save_update_word(word, w, wordFreq, g_vec, last_vec, pos);
         }
     }
     f.close();
     word.append(w, Dollar);
-    save_update_word(word, w, wordFreq, g, last_file, NULL, pos);
-    if (fclose(last_file) != 0) die("Error closing last file");
+    save_update_word(word, w, wordFreq, g_vec, last_vec, pos);
+
+    FILE *g = open_aux_file(filename.c_str(), "parse_old", "wb");
+    for (uint64_t hash : g_vec) {
+        if (fwrite(&hash, sizeof(hash), 1, g) != 1)
+            die("parse write error");
+    }
     if (fclose(g) != 0) die("Error closing parse file");
+
+    FILE *last_file = open_aux_file(filename.c_str(), "last", "wb");
+    for (char c : last_vec) {
+        if (fputc(c, last_file) == EOF)     // can this happen?
+            die("Error writing to .last file");
+    }
+    if (fclose(last_file) != 0) die("Error closing last file");
+
     return krw.tot_char;
 }
 
