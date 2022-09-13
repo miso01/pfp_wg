@@ -23,7 +23,6 @@
 #include <assert.h>
 
 #include <sdsl/util.hpp>
-
 #include "tfm_index.hpp"
 
 extern "C" {
@@ -275,23 +274,17 @@ void writeDictOcc(
     if (fclose(fdict) != 0) die("Error closing DICT file");
 }
 
-void remapParse(Args &arg, map<uint64_t, word_stats> &wfreq, vector<uint64_t> &parse) {
-    vector<uint32_t> new_parse{};
-
+void remapParse(Args &arg, map<uint64_t, word_stats> &wfreq, vector<uint64_t> &parse, uint32_t *new_parse) {
     // recompute occ as an extra check
     vector<occ_int_t> occ(wfreq.size() + 1, 0); // ranks are zero based
+    uint_t i = 0;
     for (uint64_t hash : parse) {
         word_int_t rank = wfreq.at(hash).rank;
         occ[rank]++;
-        new_parse.push_back(rank);
+        new_parse[i] = rank;
+        i++;
     }
-
-    FILE *newp = open_aux_file(arg.inputFileName.c_str(), "parse", "wb");
-    for (auto rank : new_parse) {
-        size_t s = fwrite(&rank, sizeof(rank), 1, newp);
-        if (s != 1) die("Error writing to new parse file");
-    }
-    if (fclose(newp) != 0) die("Error closing new parse file");
+    parse[i] = 0;
 }
 
 void print_help(char **argv, Args &args) {
@@ -913,19 +906,17 @@ int main(int argc, char **argv) {
     writeDictOcc(arg, wordFreq, dictArray); // + <fn>.dict
     dictArray.clear(); // reclaim memory
 
-    remapParse(arg, wordFreq, parse); // + <fn>.parse
-
-    // construct tunneled fm index
-    tfm_index<> tfm;
+    // size_t psize;
+    uint32_t *p = new uint32_t[parse.size() + 1];
+    remapParse(arg, wordFreq, parse, p); // + <fn>.parse
+    // p = load_parse(arg.inputFileName + ".parse", psize);
+    size_t sigma = compute_sigma(p, parse.size());
+    compute_BWT(p, parse.size() + 1, sigma, arg.inputFileName + ".bwt"); // <fn>.bwt
+    delete[] p;
 
     cache_config config(true, "./", util::basename(arg.inputFileName));
-    size_t psize;
-    uint32_t *p = load_parse(arg.inputFileName + ".parse", psize);
-    size_t sigma = compute_sigma(p, psize);
-    compute_BWT(p, psize + 1, sigma, arg.inputFileName + ".bwt"); // <fn>.bwt
-    delete p;
-
-    construct_tfm_index(tfm, arg.inputFileName + ".bwt", psize + 1, config);
+    tfm_index<> tfm;
+    construct_tfm_index(tfm, arg.inputFileName + ".bwt", parse.size() + 1, config);
 
 //-------------------------------------------------------------------------------
 
