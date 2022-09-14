@@ -742,49 +742,26 @@ void dout(Args &arg, uint8_t *d, long dsize, tfm_index &tfmp, long dwords, uint_
 }
 
 Dict read_dictionary(vector<char> &dict) {
-    const char *filename = "dictionary.tmp";
-    // string filename = "dictionary.tmp";
-    FILE *fdict = open_aux_file(filename, "dict", "wb");
-    for (auto c : dict) {
-        if (fputc(c, fdict) == EOF)
-            die("Error writing to DICT file");
-    }
-    if (fclose(fdict) != 0) die("Error closing DICT file");
-
-    FILE *g = open_aux_file(filename, "dict", "rb");
-    fseek(g, 0, SEEK_END);
-    long dsize = ftell(g);
-    if (dsize < 0)
-        die("ftell dictionary");
-    if (dsize <= 1 + 4)
-        die("invalid dictionary file");
-    if (dsize > 0x7FFFFFFE) {
-        printf("Dictionary size greater than  2^31-2!\n");
-        printf("Please use 64 bit version\n");
-        exit(1);
-    }
-
+    size_t dsize = dict.size();
     uint8_t *d = new uint8_t[dsize];
-    rewind(g);
-    uint64_t e = fread(d, 1, dsize, g);
-    if (e != (uint64_t)dsize)
-        die("Dictionary fread errror!");
-    fclose(g);
+    for (size_t i = 0; i < dsize; i++) {
+        d[i] = dict[i];
+    }
 
     uint64_t dwords = 0;
-    for (int i = 0; i < dsize; i++) {
+    for (size_t i = 0; i < dsize; i++) {
         if (d[i] == EndOfWord)
             dwords++;
     }
 
     uint64_t *end = new uint64_t[dwords];
     int cnt = 0;
-    for (int i = 0; i < dsize; i++) {
+    for (size_t i = 0; i < dsize; i++) {
         if (d[i] == EndOfWord)
             end[cnt++] = i;
     }
 
-    Dict res = {d, end, e, dwords};
+    Dict res = {d, end, (uint64_t)dsize, dwords};
     return res;
 }
 
