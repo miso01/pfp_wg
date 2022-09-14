@@ -223,17 +223,16 @@ bool pstringCompare(const string *a, const string *b) { return *a <= *b; }
 
 // given the sorted dictionary and the frequency map write the dictionary and
 // occ files also compute the 1-based rank for each hash
-void writeDictOcc(Args &arg, map<uint64_t, word_stats> &wfreq, vector<const string *> &sortedDict) {
+void writeDictOcc(map<uint64_t, word_stats> &wfreq, vector<const string *> &sortedDict, vector<char> &dict) {
     assert(sortedDict.size() == wfreq.size());
     // open dictionary and occ files
-    vector<char> dict{};
     vector<uint32_t> vocc{};
 
     word_int_t wrank = 1; // current word rank (1 based)
     for (auto x : sortedDict) {
         const char *word = (*x).data(); // current dictionary word
         size_t len = (*x).size(); // offset and length of word
-        assert(len > (size_t)arg.w);
+        // assert(len > (size_t)arg.w);
         for (size_t i = 0; i < len; i++) {
             dict.push_back(word[i]);
         }
@@ -248,13 +247,6 @@ void writeDictOcc(Args &arg, map<uint64_t, word_stats> &wfreq, vector<const stri
         wf.rank = wrank++;
     }
     dict.push_back(EndOfDict);
-
-    FILE *fdict = open_aux_file(arg.inputFileName.c_str(), "dict", "wb");
-    for (auto c : dict) {
-        if (fputc(c, fdict) == EOF)
-            die("Error writing to DICT file");
-    }
-    if (fclose(fdict) != 0) die("Error closing DICT file");
 }
 
 void remapParse(map<uint64_t, word_stats> &wfreq, vector<uint64_t> &parse, uint32_t *new_parse) {
@@ -749,7 +741,16 @@ void dout(Args &arg, uint8_t *d, long dsize, tfm_index &tfmp, long dwords, uint_
     fclose(fdout);
 }
 
-Dict read_dictionary(const char *filename) {
+Dict read_dictionary(vector<char> &dict) {
+    const char *filename = "dictionary.tmp";
+    // string filename = "dictionary.tmp";
+    FILE *fdict = open_aux_file(filename, "dict", "wb");
+    for (auto c : dict) {
+        if (fputc(c, fdict) == EOF)
+            die("Error writing to DICT file");
+    }
+    if (fclose(fdict) != 0) die("Error closing DICT file");
+
     FILE *g = open_aux_file(filename, "dict", "rb");
     fseek(g, 0, SEEK_END);
     long dsize = ftell(g);
@@ -894,7 +895,11 @@ int main(int argc, char **argv) {
     assert(dictArray.size() == totDWord);
     sort(dictArray.begin(), dictArray.end(), pstringCompare);
     // write plain dictionary, also compute rank for each hash
-    writeDictOcc(arg, wordFreq, dictArray); // + <fn>.dict
+    vector<char> dictionary{};
+    writeDictOcc(wordFreq, dictArray, dictionary);
+
+
+
     dictArray.clear(); // reclaim memory
 
     size_t n = parse.size() + 1;
@@ -907,9 +912,7 @@ int main(int argc, char **argv) {
     tfm_index tfm;
     construct_tfm_index(tfm, bwt, n);
 
-//-------------------------------------------------------------------------------
-
-    struct Dict dict = read_dictionary(arg.inputFileName.c_str());
+    struct Dict dict = read_dictionary(dictionary);
 
     uint32_t *ilist = new uint32_t[tfm.L.size() - 1];
     generate_ilist(ilist, tfm, dict.dwords);
