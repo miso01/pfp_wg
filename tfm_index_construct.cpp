@@ -911,5 +911,6 @@ int main(int argc, char **argv) {
     tfm_index unparsed;
     unparse(arg.inputFileName, arg.w, tfm, dict, unparsed);
 
+    store_to_file(unparsed, arg.inputFileName + ".text.wg");
     return 0;
 }
