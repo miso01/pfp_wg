@@ -47,7 +47,8 @@ class tfm_index {
 
   private:
 
-    friend void construct_tfm_index(tfm_index &tfm_index, const std::string filename, size_t psize);
+    typedef uint32_t uint_t;
+    friend void construct_tfm_index(tfm_index &tfm_index, uint_t *bwt, size_t psize);
 
     // constructor for gSACAK
     friend void construct_tfm_index(

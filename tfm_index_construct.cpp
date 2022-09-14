@@ -328,14 +328,14 @@ void parseArgs(int argc, char **argv, Args &arg) {
 // symbols)
 typedef uint_t sa_index_t;
 
-void compute_BWT(uint32_t *Text, long n, long k, string filename) {
-    sa_index_t *SA = (sa_index_t *)malloc(n * sizeof(*SA));
+uint_t *compute_BWT(uint32_t *Text, long n, long k) {
+    uint_t *SA = (uint_t *)malloc(n * sizeof(*SA));
     // sacak_int(Text, SA, n, k);
     // gsacak_int(Text, SA, NULL, NULL, n, k);
     SACA_K((int_t *)Text, SA, n, k, n, sizeof(int_text), 0);
     // gSACA_K(Text, SA, n, k, sizeof(int_text), 1, 0);
 
-    sa_index_t *BWTsa = SA; // BWT overlapping SA
+    uint_t *BWTsa = SA; // BWT overlapping SA
     assert(n > 1);
     // first BWT symbol
     assert(SA[0] == n);
@@ -345,9 +345,7 @@ void compute_BWT(uint32_t *Text, long n, long k, string filename) {
         else { BWTsa[i] = Text[SA[i] - 1]; }
     }
 
-    FILE *fout = fopen(filename.c_str(), "wb");
-    fwrite(BWTsa, sizeof(BWTsa[0]), n, fout);
-    fclose(fout);
+    return BWTsa;
 }
 
 size_t compute_sigma(const uint32_t *parse, const size_t psize) {
@@ -539,7 +537,7 @@ void write_bitvector(FILE *f, bool bit, uint8_t &cnt, uint8_t &buffer, bool hard
     }
 }
 
-void bwt(Args &arg, uint8_t *d, long dsize, uint64_t *end_to_phrase, uint32_t *ilist, tfm_index &tfmp, long dwords, uint_t *sa, int_t *lcp) {
+void store_bwt(Args &arg, uint8_t *d, long dsize, uint64_t *end_to_phrase, uint32_t *ilist, tfm_index &tfmp, long dwords, uint_t *sa, int_t *lcp) {
     // starting point in ilist for each word and # words
 
     // set d[0]==0 as this is the EOF char in the final BWT
@@ -812,8 +810,15 @@ void symbol_frequencies(std::vector<uint64_t> &C, sdsl::int_vector_buffer<> &L, 
         C[i + 1] += C[i];
 }
 
-void construct_tfm_index(tfm_index &tfm_index, const std::string filename, size_t psize) {
-    sdsl::int_vector_buffer<> L(filename, std::ios::in, psize, 32, true);
+// void construct_tfm_index(tfm_index &tfm_index, const std::string filename, size_t psize)
+void construct_tfm_index(tfm_index &tfm_index, uint_t *bwt, size_t psize) {
+
+    string bwt_filename = "bwt.tmp";
+    FILE *fout = fopen(bwt_filename.c_str(), "wb");
+    fwrite(bwt, sizeof(bwt[0]), psize, fout);
+    fclose(fout);
+
+    sdsl::int_vector_buffer<> L(bwt_filename, std::ios::in, psize, 32, true);
     sdsl::wt_blcd_int<> wt_L = sdsl::wt_blcd_int<>(L, psize);
 
     std::vector<uint64_t> C = std::vector<uint64_t>(wt_L.sigma + 1, 0);
@@ -867,6 +872,7 @@ void construct_tfm_index(tfm_index &tfm_index, const std::string filename, size_
         sdsl::util::init_support(tfm_index.m_din_rank, &tfm_index.m_din);
     }
     sdsl::remove(tmp_file_name);
+    sdsl::remove(bwt_filename);
 }
 
 int main(int argc, char **argv) {
@@ -891,14 +897,15 @@ int main(int argc, char **argv) {
     writeDictOcc(arg, wordFreq, dictArray); // + <fn>.dict
     dictArray.clear(); // reclaim memory
 
-    uint32_t *p = new uint32_t[parse.size() + 1];
+    size_t n = parse.size() + 1;
+    uint32_t *p = new uint32_t[n];
     remapParse(wordFreq, parse, p);
     size_t sigma = compute_sigma(p, parse.size());
-    compute_BWT(p, parse.size() + 1, sigma, arg.inputFileName + ".bwt"); // <fn>.bwt
+    uint_t *bwt = compute_BWT(p, n, sigma);
     delete[] p;
 
     tfm_index tfm;
-    construct_tfm_index(tfm, arg.inputFileName + ".bwt", parse.size() + 1);
+    construct_tfm_index(tfm, bwt, n);
 
 //-------------------------------------------------------------------------------
 
@@ -912,7 +919,7 @@ int main(int argc, char **argv) {
     int_t *lcp;
     compute_dict_bwt_lcp(dict.d, dict.dsize, dict.dwords, arg.w, &sa, &lcp);
 
-    bwt(arg, dict.d, dict.dsize, dict.end, ilist, tfm, dict.dwords, sa, lcp);
+    store_bwt(arg, dict.d, dict.dsize, dict.end, ilist, tfm, dict.dwords, sa, lcp);
     din(arg, dict.d, dict.dsize, tfm, dict.dwords, sa, lcp);
     dout(arg, dict.d, dict.dsize, tfm, dict.dwords, sa, lcp);
     delete[] ilist;
