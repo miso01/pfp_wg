@@ -780,14 +780,6 @@ void generate_ilist(uint32_t *ilist, tfm_index &tfmp, uint64_t dwords) {
     }
 }
 
-void symbol_frequencies(std::vector<uint64_t> &C, sdsl::int_vector_buffer<> &L, uint64_t sigma) {
-    C = std::vector<uint64_t>(sigma + 1, 0);
-    for (uint64_t i = 0; i < L.size(); i++)
-        C[L[i] + 1] += 1;
-    for (uint64_t i = 0; i < sigma; i++)
-        C[i + 1] += C[i];
-}
-
 // void construct_tfm_index(tfm_index &tfm_index, const std::string filename, size_t psize)
 void construct_tfm_index(tfm_index &tfm_index, uint_t *bwt, size_t psize) {
 
@@ -841,7 +833,9 @@ void construct_tfm_index(tfm_index &tfm_index, uint_t *bwt, size_t psize) {
         tfm_index.text_len = psize;
 
         tfm_index.m_L = tfm_index::wt_type(L_buf, L_buf.size());
-        symbol_frequencies(tfm_index.m_C, L_buf, tfm_index.m_L.sigma);
+        tfm_index.m_C = std::vector<uint64_t>(tfm_index.m_L.sigma + 1, 0);
+        for (uint64_t i = 0; i < L_buf.size(); i++) tfm_index.m_C[L_buf[i] + 1] += 1;
+        for (uint64_t i = 0; i < tfm_index.m_L.sigma; i++) tfm_index.m_C[i + 1] += tfm_index.m_C[i];
 
         tfm_index.m_dout = tfm_index::bit_vector_type(std::move(dout));
         sdsl::util::init_support(tfm_index.m_dout_select, &tfm_index.m_dout);
