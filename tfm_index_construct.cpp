@@ -74,12 +74,6 @@ struct word_stats {
     uint32_t rank = 0;      // its rank
 };
 
-struct Args {
-    string inputFileName = "";
-    size_t w = 10;         // sliding window size and its default
-    size_t p = 100;        // modulus for establishing stopping w-tuples
-};
-
 struct KR_window {
     int wsize;
     int *window;
@@ -240,46 +234,7 @@ void remapParse(map<uint64_t, word_stats> &wfreq, vector<uint64_t> &parse, uint3
     parse[i] = 0;
 }
 
-void print_help(char **argv, Args &args) {
-    cout << "Usage: " << argv[0] << " <input filename> [options]" << endl;
-    cout << "  Options: " << endl
-         << "\t-w W\tsliding window size, def. " << args.w << endl
-         << "\t-p M\tmodulo for defining phrases, def. " << args.p << endl
-         << "\t-h  \tshow help and exit" << endl;
-    exit(1);
-}
 
-void parseArgs(int argc, char **argv, Args &arg) {
-    int c;
-    extern char *optarg;
-    extern int optind;
-
-    string sarg;
-    while ((c = getopt(argc, argv, "p:w:h")) != -1) {
-        switch (c) {
-        case 'w':
-            sarg.assign(optarg);
-            arg.w = stoi(sarg);
-            break;
-        case 'p':
-            sarg.assign(optarg);
-            arg.p = stoi(sarg);
-            break;
-        case 'h':
-            print_help(argv, arg);
-            exit(1);
-        case '?':
-            cout << "Unknown option. Use -h for help." << endl;
-            exit(1);
-        }
-    }
-    if (argc == optind + 1) {
-        arg.inputFileName.assign(argv[optind]);
-    } else {
-        cout << "Invalid number of arguments" << endl;
-        print_help(argv, arg);
-    }
-}
 
 uint_t *compute_BWT(uint32_t *Text, long n, long k) {
     uint_t *SA = (uint_t *)malloc(n * sizeof(*SA));
@@ -809,22 +764,73 @@ void unparse(string &filename, size_t w, tfm_index &wg_parse, struct Dict &dict,
     return;
 }
 
-int main(int argc, char **argv) {
+//------------------------------------------------------------------------------
+
+struct Args {
+    string input;
+    string output;
+    size_t w;       // sliding window size and its default
+    size_t p;       // modulus for establishing stopping w-tuples
+};
+
+void print_help(char **argv) {
+    cout << "Usage: " << argv[0] << " -w 10 -p 100 -i input.txt -o output.wg" << endl
+         << "\tOptions: " << endl
+         << "\t-w W\tsliding window size" << endl
+         << "\t-p M\tmodulo for defining phrases" << endl
+         << "\t-i I\tinput file (text)" << endl
+         << "\t-o O\toutput file (binary representation of WG)" << endl
+         << "\t-h  \tshow help and exit" << endl;
+}
+
+Args parse_args(int argc, char **argv) {
+    extern char *optarg;
+    extern int optind;
+
     Args arg;
-    parseArgs(argc, argv, arg);
+    int c;
+    string sarg;
+
+    while ((c = getopt(argc, argv, "p:w:i:o:h")) != -1) {
+        switch (c) {
+            case 'i':
+                arg.input.assign(optarg);
+                break;
+            case 'o':
+                arg.output.assign(optarg);
+                break;
+            case 'w':
+                sarg.assign(optarg);
+                arg.w = stoi(sarg);
+                break;
+            case 'p':
+                sarg.assign(optarg);
+                arg.p = stoi(sarg);
+                break;
+            case 'h':
+                print_help(argv);
+                exit(1);
+            case '?':
+                cout << "Unknown option. Use -h for help." << endl;
+                exit(1);
+        }
+    }
+    return arg;
+}
+
+int main(int argc, char **argv) {
+    Args arg = parse_args(argc, argv);
 
     map<uint64_t, word_stats> wordFreq;
     vector<uint64_t> parse{};
     vector<char> last{}; // this is maybe not needed
-    calculate_word_frequencies(arg.inputFileName, arg.w, arg.p, wordFreq, parse, last);
+    calculate_word_frequencies(arg.input, arg.w, arg.p, wordFreq, parse, last);
 
     // create array of dictionary words
     vector<const string *> dictArray;
     uint64_t totDWord = wordFreq.size();
     dictArray.reserve(totDWord);
-    for (auto &x : wordFreq) {
-        dictArray.push_back(&x.second.str);
-    }
+    for (auto &x : wordFreq) { dictArray.push_back(&x.second.str); }
     assert(dictArray.size() == totDWord);
     sort(dictArray.begin(), dictArray.end(), pstringCompare);
     // write plain dictionary, also compute rank for each hash
@@ -845,8 +851,8 @@ int main(int argc, char **argv) {
     construct_tfm_index(tfm, bwt, n);
 
     tfm_index unparsed;
-    unparse(arg.inputFileName, arg.w, tfm, dict, unparsed);
+    unparse(arg.input, arg.w, tfm, dict, unparsed);
 
-    store_to_file(unparsed, arg.inputFileName + ".text.wg");
+    store_to_file(unparsed, arg.output);
     return 0;
 }
