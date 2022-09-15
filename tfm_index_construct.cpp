@@ -37,10 +37,10 @@ using namespace __gnu_cxx;
 // =============== algorithm limits ===================
 // maximum number of distinct words
 #define MAX_DISTINCT_WORDS (INT32_MAX - 1)
-typedef uint32_t word_int_t;
+// typedef uint32_t word_int_t;
 // maximum number of occurrences of a single word
 #define MAX_WORD_OCC (UINT32_MAX)
-typedef uint32_t occ_int_t;
+// typedef uint32_t occ_int_t;
 
 // clang-format off
 uint8_t asc2dnacat[] = {
@@ -68,23 +68,18 @@ uint8_t asc2dnacat[] = {
 };
 // clang-format on
 
-// values of the wordFreq map: word, its number of occurrences, and its rank
 struct word_stats {
-    string str;
-    occ_int_t occ;
-    word_int_t rank = 0;
+    string str;             // word
+    uint32_t occ;           // its number of occurences
+    uint32_t rank = 0;      // its rank
 };
 
-// -------------------------------------------------------------
-// struct containing command line parameters and other globals
 struct Args {
     string inputFileName = "";
     size_t w = 10;         // sliding window size and its default
     size_t p = 100;        // modulus for establishing stopping w-tuples
 };
 
-// -----------------------------------------------------------------
-// class to maintain a window in a string and its KR fingerprint
 struct KR_window {
     int wsize;
     int *window;
@@ -105,23 +100,18 @@ struct KR_window {
         reset();
     }
 
-    // init window, hash, and tot_char
     void reset() {
         for (int i = 0; i < wsize; i++)
             window[i] = 0;
-        // init hash value and related values
         hash = tot_char = 0;
     }
 
     uint64_t addchar(int c) {
         int k = tot_char++ % wsize;
         // complex expression to avoid negative numbers
-        hash +=
-            (prime - (window[k] * asize_pot) % prime
-            );                             // remove window[k] contribution
-        hash = (asize * hash + c) % prime; //  add char i
+        hash += (prime - (window[k] * asize_pot) % prime);  // remove window[k] contribution
+        hash = (asize * hash + c) % prime;                  //  add char i
         window[k] = c;
-        // cerr << get_window() << " ~~ " << window << " --> " << hash << endl;
         return hash;
     }
 
@@ -129,13 +119,9 @@ struct KR_window {
 };
 // -----------------------------------------------------------
 
-// compute 64-bit KR hash of a string
-// to avoid overflows in 64 bit aritmethic the prime is taken < 2**55
 uint64_t kr_hash(string s) {
     uint64_t hash = 0;
-    // const uint64_t prime = 3355443229;     // next prime(2**31+2**30+2**27)
-    const uint64_t prime =
-        27162335252586509; // next prime (2**54 + 2**53 + 2**47 + 2**13)
+    const uint64_t prime = 27162335252586509; // next prime (2**54 + 2**53 + 2**47 + 2**13)
     for (size_t k = 0; k < s.size(); k++) {
         int c = (unsigned char)s[k];
         assert(c >= 0 && c < 256);
@@ -144,8 +130,6 @@ uint64_t kr_hash(string s) {
     return hash;
 }
 
-// save current word in the freq map and update it leaving only the
-// last minsize chars which is the overlap with next word
 static void save_update_word(string &w, unsigned int minsize, map<uint64_t, word_stats> &freq, vector<uint64_t> &parse, vector<char> &last, uint64_t &pos) {
     assert(pos == 0 || w.size() > minsize);
     if (w.size() <= minsize)
@@ -184,8 +168,6 @@ static void save_update_word(string &w, unsigned int minsize, map<uint64_t, word
     w.erase(0, w.size() - minsize);
 }
 
-// prefix free parse of file fnam. w is the window size, p is the modulus
-// use a KR-hash as the word ID that is immediately written to the parse file
 uint64_t process_file(string &filename, size_t w, size_t p, map<uint64_t, word_stats> &wordFreq, vector<uint64_t> &g_vec, vector<char> &last_vec) {
     uint64_t pos = 0;
     assert( IBYTES <= sizeof(pos) );
@@ -218,17 +200,13 @@ uint64_t process_file(string &filename, size_t w, size_t p, map<uint64_t, word_s
     return krw.tot_char;
 }
 
-// function used to compare two string pointers
 bool pstringCompare(const string *a, const string *b) { return *a <= *b; }
 
-// given the sorted dictionary and the frequency map write the dictionary and
-// occ files also compute the 1-based rank for each hash
 void writeDictOcc(map<uint64_t, word_stats> &wfreq, vector<const string *> &sortedDict, vector<char> &dict) {
     assert(sortedDict.size() == wfreq.size());
-    // open dictionary and occ files
     vector<uint32_t> vocc{};
 
-    word_int_t wrank = 1; // current word rank (1 based)
+    uint32_t wrank = 1; // current word rank (1 based)
     for (auto x : sortedDict) {
         const char *word = (*x).data(); // current dictionary word
         size_t len = (*x).size(); // offset and length of word
@@ -251,10 +229,10 @@ void writeDictOcc(map<uint64_t, word_stats> &wfreq, vector<const string *> &sort
 
 void remapParse(map<uint64_t, word_stats> &wfreq, vector<uint64_t> &parse, uint32_t *new_parse) {
     // recompute occ as an extra check
-    vector<occ_int_t> occ(wfreq.size() + 1, 0); // ranks are zero based
+    vector<uint32_t> occ(wfreq.size() + 1, 0); // ranks are zero based
     uint_t i = 0;
     for (uint64_t hash : parse) {
-        word_int_t rank = wfreq.at(hash).rank;
+        uint32_t rank = wfreq.at(hash).rank;
         occ[rank]++;
         new_parse[i] = rank;
         i++;
@@ -295,30 +273,13 @@ void parseArgs(int argc, char **argv, Args &arg) {
             exit(1);
         }
     }
-    // the only input parameter is the file name
     if (argc == optind + 1) {
         arg.inputFileName.assign(argv[optind]);
     } else {
         cout << "Invalid number of arguments" << endl;
         print_help(argv, arg);
     }
-    // check algorithm parameters
-    if (arg.w < 4) {
-        cout << "Windows size must be at least 4\n";
-        exit(1);
-    }
-    if (arg.p < 10) {
-        cout << "Modulus must be at leas 10\n";
-        exit(1);
-    }
 }
-
-// -------------------------------------------------------
-// type used to represent an entry in the SA
-// this is currently 32 bit for gsacak and 64 bit for gsacak-64
-// note that here we use sacak (SA computation for a single string of 32 bit
-// symbols)
-typedef uint_t sa_index_t;
 
 uint_t *compute_BWT(uint32_t *Text, long n, long k) {
     uint_t *SA = (uint_t *)malloc(n * sizeof(*SA));
@@ -369,8 +330,7 @@ void calculate_word_frequencies(string &filename, size_t w, size_t p, map<uint64
 
 struct Dict {
     uint8_t *d; // pointer to the dictionary
-    uint64_t
-        *end; // end[i] is the index of the ending symbol of the i-th phrase
+    uint64_t *end; // end[i] is the index of the ending symbol of the i-th phrase
     uint64_t dsize;  // dicionary size in symbols
     uint64_t dwords; // the number of phrases of the dicionary
 };
@@ -403,14 +363,6 @@ static int_t getlen(uint_t p, uint_t eos[], long n, uint32_t *seqid) {
     return eos[*seqid] - p;
 }
 
-// compute the SA and LCP array for the set of (unique) dictionary words
-// using gSACA-K. Also do some checking based on the number and order of the
-// special symbols d[0..dsize-1] is the dictionary consisting of the
-// concatenation of dictionary words in lex order with EndOfWord (0x1) at the
-// end of each word and d[size-1] = EndOfDict (0x0) at the very end. It is
-// d[0]=Dollar (0x2) since the first words starts with $. There is another word
-// somewhere ending with Dollar^wEndOfWord (it is the last word in the parsing,
-// but its lex rank is unknown).
 static void compute_dict_bwt_lcp(uint8_t *d, long dsize, long dwords, int w, uint_t **sap, int_t **lcpp) {
     uint_t *sa = new uint_t[dsize];
     int_t *lcp = new int_t[dsize];
@@ -441,8 +393,6 @@ static void compute_dict_bwt_lcp(uint8_t *d, long dsize, long dwords, int w, uin
     *lcpp = lcp;
 }
 
-// class representing the suffix of a dictionary word
-// instances of this class are stored to a heap to handle the hard bwts
 struct SeqId {
     uint32_t id;   // lex. id of the dictionary word to which the suffix belongs
     int remaining; // remaining copies of the suffix to be considered
@@ -780,7 +730,6 @@ void generate_ilist(uint32_t *ilist, tfm_index &tfmp, uint64_t dwords) {
     }
 }
 
-// void construct_tfm_index(tfm_index &tfm_index, const std::string filename, size_t psize)
 void construct_tfm_index(tfm_index &tfm_index, uint_t *bwt, size_t psize) {
 
     string bwt_filename = "bwt.tmp";
@@ -790,15 +739,11 @@ void construct_tfm_index(tfm_index &tfm_index, uint_t *bwt, size_t psize) {
 
     sdsl::int_vector_buffer<> L(bwt_filename, std::ios::in, psize, 32, true);
     sdsl::wt_blcd_int<> wt_L = sdsl::wt_blcd_int<>(L, psize);
-
     std::vector<uint64_t> C = std::vector<uint64_t>(wt_L.sigma + 1, 0);
-    for (uint64_t i = 0; i < psize; i++)
-        C[L[i] + 1] += 1;
-    for (uint64_t i = 0; i < wt_L.sigma; i++)
-        C[i + 1] += C[i];
+    for (uint64_t i = 0; i < psize; i++) C[L[i] + 1] += 1;
+    for (uint64_t i = 0; i < wt_L.sigma; i++) C[i + 1] += C[i];
 
-    typedef tfm_index::size_type size_type;
-    std::pair<size_type, size_type> dbg_res;
+    std::pair<tfm_index::size_type, tfm_index::size_type> dbg_res;
 
     sdsl::bit_vector B;
     {
@@ -814,9 +759,9 @@ void construct_tfm_index(tfm_index &tfm_index, uint_t *bwt, size_t psize) {
     {
         sdsl::int_vector_buffer<> L_buf(tmp_file_name, std::ios::out);
 
-        size_type p = 0;
-        size_type q = 0;
-        for (size_type i = 0; i < wt_L.size(); i++) {
+        tfm_index::size_type p = 0;
+        tfm_index::size_type q = 0;
+        for (tfm_index::size_type i = 0; i < wt_L.size(); i++) {
             if (din[i] == 1) {
                 L_buf.push_back(wt_L[i]);
                 dout[p++] = dout[i];
@@ -831,15 +776,12 @@ void construct_tfm_index(tfm_index &tfm_index, uint_t *bwt, size_t psize) {
         din.resize(q);
 
         tfm_index.text_len = psize;
-
         tfm_index.m_L = tfm_index::wt_type(L_buf, L_buf.size());
         tfm_index.m_C = std::vector<uint64_t>(tfm_index.m_L.sigma + 1, 0);
         for (uint64_t i = 0; i < L_buf.size(); i++) tfm_index.m_C[L_buf[i] + 1] += 1;
         for (uint64_t i = 0; i < tfm_index.m_L.sigma; i++) tfm_index.m_C[i + 1] += tfm_index.m_C[i];
-
         tfm_index.m_dout = tfm_index::bit_vector_type(std::move(dout));
         sdsl::util::init_support(tfm_index.m_dout_select, &tfm_index.m_dout);
-
         tfm_index.m_din = tfm_index::bit_vector_type(std::move(din));
         sdsl::util::init_support(tfm_index.m_din_rank, &tfm_index.m_din);
     }
