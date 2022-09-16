@@ -7,6 +7,7 @@
 #include <iostream>
 #include <map>
 #include <random>
+#include <sdsl/io.hpp>
 #include <sstream>
 #include <stdexcept>
 #include <stdlib.h>
@@ -643,53 +644,9 @@ void generate_ilist(uint32_t *ilist, tfm_index &tfmp, uint64_t dwords) {
     }
 }
 
-tfm_index construct_tfm_index(vector<uint64_t> &bwt) {
-
-    string bwt_filename = "bwt.tmp";
-    FILE *fout = fopen(bwt_filename.c_str(), "wb");
-    fwrite(bwt.data(), sizeof(bwt[0]), bwt.size(), fout);
-    fclose(fout);
-
-    sdsl::int_vector_buffer<> L(bwt_filename, std::ios::in, bwt.size(), 64, true);
-    sdsl::wt_blcd_int<> wt_L = sdsl::wt_blcd_int<>(L, bwt.size());
-    std::vector<uint64_t> C = std::vector<uint64_t>(wt_L.sigma + 1, 0);
-    for (uint64_t i = 0; i < bwt.size(); i++) C[L[i] + 1] += 1;
-    for (uint64_t i = 0; i < wt_L.sigma; i++) C[i + 1] += C[i];
-
-    std::pair<tfm_index::size_type, tfm_index::size_type> dbg_res;
-
-    sdsl::bit_vector B;
-    {
-        dbg_res = dbg_algorithms::find_min_dbg(wt_L, C, B);
-    }
-
-    sdsl::bit_vector dout = B;
-    sdsl::bit_vector din;
-    std::swap(din, B);
-    dbg_algorithms::mark_prefix_intervals(wt_L, C, dout, din);
-
-    string tmp_file_name = "construct_tfm_index.tmp";
-
-    sdsl::int_vector_buffer<> L_buf(tmp_file_name, std::ios::out);
-
-    tfm_index::size_type p = 0;
-    tfm_index::size_type q = 0;
-    for (tfm_index::size_type i = 0; i < wt_L.size(); i++) {
-        if (din[i] == 1) {
-            L_buf.push_back(wt_L[i]);
-            dout[p++] = dout[i];
-        }
-        if (dout[i] == 1) {
-            din[q++] = din[i];
-        }
-    }
-    dout[p++] = 1;
-    din[q++] = 1;
-    dout.resize(p);
-    din.resize(q);
-
+tfm_index create_tfm(sdsl::int_vector_buffer<> &L_buf, sdsl::bit_vector &din, sdsl::bit_vector &dout) {
     tfm_index tfm_index;
-    tfm_index.text_len = bwt.size();
+    tfm_index.text_len = L_buf.size();
     tfm_index.m_L = tfm_index::wt_type(L_buf, L_buf.size());
     tfm_index.m_C = std::vector<uint64_t>(tfm_index.m_L.sigma + 1, 0);
     for (uint64_t i = 0; i < L_buf.size(); i++) tfm_index.m_C[L_buf[i] + 1] += 1;
@@ -698,13 +655,11 @@ tfm_index construct_tfm_index(vector<uint64_t> &bwt) {
     sdsl::util::init_support(tfm_index.m_dout_select, &tfm_index.m_dout);
     tfm_index.m_din = tfm_index::bit_vector_type(std::move(din));
     sdsl::util::init_support(tfm_index.m_din_rank, &tfm_index.m_din);
-
-    sdsl::remove(tmp_file_name);
-    sdsl::remove(bwt_filename);
     return tfm_index;
 }
 
 void unparse(string &filename, size_t w, tfm_index &wg_parse, struct Dict &dict, tfm_index &wg_text) {
+// tfm_index unparse(tfm_index &wg_parse, Dict &dict, size_t w) {
     uint32_t *ilist = new uint32_t[wg_parse.L.size() - 1];
     generate_ilist(ilist, wg_parse, dict.dwords);
 
@@ -715,6 +670,21 @@ void unparse(string &filename, size_t w, tfm_index &wg_parse, struct Dict &dict,
     store_bwt(filename , w, dict.d, dict.dsize, dict.end, ilist, wg_parse, dict.dwords, sa, lcp);
     din(filename, w, dict.d, dict.dsize, wg_parse, dict.dwords, sa, lcp);
     dout(filename, w, dict.d, dict.dsize, wg_parse, dict.dwords, sa, lcp);
+
+    // string bwt = "data/yeast.raw";
+    // store_bwt(bwt , w, dict.d, dict.dsize, dict.end, ilist, wg_parse, dict.dwords, sa, lcp);
+    // sdsl::int_vector_buffer<> L_buf(bwt + ".L", std::ios::out);
+
+    // string din_file = "data/yeast.raw";
+    // din(din_file, w, dict.d, dict.dsize, wg_parse, dict.dwords, sa, lcp);
+    // sdsl::bit_vector din;
+    // load_vector_from_file(din, din_file + ".din");
+
+    // string dout_file = "data/yeast.raw";
+    // dout(dout_file, w, dict.d, dict.dsize, wg_parse, dict.dwords, sa, lcp);
+    // sdsl::bit_vector dout;
+    // load_vector_from_file(dout, dout_file + ".dout");
+
     delete[] ilist;
     delete[] dict.d;
     delete[] dict.end;
@@ -722,6 +692,7 @@ void unparse(string &filename, size_t w, tfm_index &wg_parse, struct Dict &dict,
     delete[] sa;
 
     return;
+    // return create_tfm(L_buf, din, dout);
 }
 
 //------------------------------------------------------------------------------
@@ -778,9 +749,6 @@ Args parse_args(int argc, char **argv) {
 }
 
 vector<uint64_t> remapParse(map<uint64_t, word_stats> &wfreq, vector<uint64_t> &parse) {
-    // recompute occ as an extra check
-    // size_t n = parse.size() + 1;
-    // uint32_t *new_parse = new uint32_t[n];
     vector<uint64_t> new_parse{};
 
     vector<uint32_t> occ(wfreq.size() + 1, 0); // ranks are zero based
@@ -814,36 +782,6 @@ void pf_parse(string &input, size_t w, size_t p, vector<uint64_t> &parse, Dict &
     parse = remapParse(wordFreq, parse);
 }
 
-// uint_t *compute_bwt(vector<uint64_t> &text) {
-//     // size_t sigma = compute_sigma(text, text.size());
-//     // size_t compute_sigma(const uint32_t *parse, const size_t psize) {
-//     uint64_t sigma = 183416 + 1 + 2;
-//     // for (size_t i = 0; i < text.size(); i++) {
-//     //     if (sigma < text[i])
-//     //         sigma = text[i];
-//     // }
-//     // sigma++;
-//     // return (max + 1);
-//     // }
-
-//     // uint_t *bwt = compute_BWT(text, text.size() + 1, sigma);
-//     // uint_t *compute_BWT(uint32_t *Text, long n, long k) {
-//     // uint_t n = text.size() + 1;
-//     uint_t *SA = (uint_t *)malloc((text.size()+1) * sizeof(*SA));
-//     uint_t *t  = (uint_t *)malloc((text.size()+5) * sizeof(*t));
-//     for (size_t i = 0; i < text.size(); i++) { t[i] = (uint_t)text[i] + 2; }
-//     t[text.size()] = 0;
-//     gsacak_int(t, SA, NULL, NULL, text.size()+1, sigma);
-
-//     uint_t *BWTsa = SA; // BWT overlapping SA
-//     for (uint64_t i = 0; i < text.size(); i++) {
-//         if (SA[i] == 0) { BWTsa[i] = 0; }
-//         else { BWTsa[i] = t[SA[i] - 1]; }
-//     }
-
-//     return BWTsa;
-// }
-
 vector<uint64_t> compute_bwt(vector<uint64_t> &text) {
     uint64_t sigma = 0; // = 183416 + 1 + 2;
     for (size_t i = 0; i < text.size(); i++) {
@@ -876,6 +814,67 @@ vector<uint64_t> compute_bwt(vector<uint64_t> &text) {
     return bwt;
 }
 
+tfm_index construct_tfm_index(vector<uint64_t> &bwt) {
+    string bwt_filename = "bwt.tmp";
+    FILE *fout = fopen(bwt_filename.c_str(), "wb");
+    fwrite(bwt.data(), sizeof(bwt[0]), bwt.size(), fout);
+    fclose(fout);
+
+    sdsl::int_vector_buffer<> L(bwt_filename, std::ios::in, bwt.size(), 64, true);
+    sdsl::wt_blcd_int<> wt_L = sdsl::wt_blcd_int<>(L, bwt.size());
+    std::vector<uint64_t> C = std::vector<uint64_t>(wt_L.sigma + 1, 0);
+    for (uint64_t i = 0; i < bwt.size(); i++) C[L[i] + 1] += 1;
+    for (uint64_t i = 0; i < wt_L.sigma; i++) C[i + 1] += C[i];
+
+    std::pair<tfm_index::size_type, tfm_index::size_type> dbg_res;
+
+    sdsl::bit_vector B;
+    {
+        dbg_res = dbg_algorithms::find_min_dbg(wt_L, C, B);
+    }
+
+    sdsl::bit_vector dout = B;
+    sdsl::bit_vector din;
+    std::swap(din, B);
+    dbg_algorithms::mark_prefix_intervals(wt_L, C, dout, din);
+
+    string tmp_file_name = "construct_tfm_index.tmp";
+
+    sdsl::int_vector_buffer<> L_buf(tmp_file_name, std::ios::out);
+
+    tfm_index::size_type p = 0;
+    tfm_index::size_type q = 0;
+    for (tfm_index::size_type i = 0; i < wt_L.size(); i++) {
+        if (din[i] == 1) {
+            L_buf.push_back(wt_L[i]);
+            dout[p++] = dout[i];
+        }
+        if (dout[i] == 1) {
+            din[q++] = din[i];
+        }
+    }
+    dout[p++] = 1;
+    din[q++] = 1;
+    dout.resize(p);
+    din.resize(q);
+
+    // tfm_index tfm_index = create_tfm(L_buf, din, dout);
+    tfm_index tfm_index;
+    tfm_index.text_len = bwt.size();
+    tfm_index.m_L = tfm_index::wt_type(L_buf, L_buf.size());
+    tfm_index.m_C = std::vector<uint64_t>(tfm_index.m_L.sigma + 1, 0);
+    for (uint64_t i = 0; i < L_buf.size(); i++) tfm_index.m_C[L_buf[i] + 1] += 1;
+    for (uint64_t i = 0; i < tfm_index.m_L.sigma; i++) tfm_index.m_C[i + 1] += tfm_index.m_C[i];
+    tfm_index.m_dout = tfm_index::bit_vector_type(std::move(dout));
+    sdsl::util::init_support(tfm_index.m_dout_select, &tfm_index.m_dout);
+    tfm_index.m_din = tfm_index::bit_vector_type(std::move(din));
+    sdsl::util::init_support(tfm_index.m_din_rank, &tfm_index.m_din);
+
+    sdsl::remove(tmp_file_name);
+    sdsl::remove(bwt_filename);
+    return tfm_index;
+}
+
 int main(int argc, char **argv) {
     Args arg = parse_args(argc, argv);
 
@@ -885,6 +884,7 @@ int main(int argc, char **argv) {
     vector<uint64_t> bwt = compute_bwt(parse);
     tfm_index tfm = construct_tfm_index(bwt);
     tfm_index unparsed; unparse(arg.input, arg.w, tfm, dict, unparsed);         // TODO: merge
+    // tfm_index unparsed = unparse(tfm, dict, arg.w);
 
     store_to_file(unparsed, arg.output);
     return 0;

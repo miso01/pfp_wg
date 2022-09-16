@@ -51,6 +51,7 @@ class tfm_index {
     // friend void construct_tfm_index(tfm_index &tfm_index, uint_t *bwt, size_t psize);
 
     friend tfm_index construct_tfm_index(std::vector<uint64_t> &bwt);
+    friend tfm_index create_tfm(sdsl::int_vector_buffer<> &L_buf, sdsl::bit_vector &din, sdsl::bit_vector &dout);
 
     // constructor for gSACAK
     friend void construct_tfm_index(
