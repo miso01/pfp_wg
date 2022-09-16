@@ -9,7 +9,9 @@
 #include <random>
 #include <sstream>
 #include <stdexcept>
+#include <stdlib.h>
 #include <string>
+#include <sys/types.h>
 #include <utility>
 #include <vector>
 
@@ -219,50 +221,6 @@ void writeDictOcc(map<uint64_t, word_stats> &wfreq, vector<const string *> &sort
         wf.rank = wrank++;
     }
     dict.push_back(EndOfDict);
-}
-
-void remapParse(map<uint64_t, word_stats> &wfreq, vector<uint64_t> &parse, uint32_t *new_parse) {
-    // recompute occ as an extra check
-    vector<uint32_t> occ(wfreq.size() + 1, 0); // ranks are zero based
-    uint_t i = 0;
-    for (uint64_t hash : parse) {
-        uint32_t rank = wfreq.at(hash).rank;
-        occ[rank]++;
-        new_parse[i] = rank;
-        i++;
-    }
-    parse[i] = 0;
-}
-
-
-
-uint_t *compute_BWT(uint32_t *Text, long n, long k) {
-    uint_t *SA = (uint_t *)malloc(n * sizeof(*SA));
-    // sacak_int(Text, SA, n, k);
-    // gsacak_int(Text, SA, NULL, NULL, n, k);
-    SACA_K((int_t *)Text, SA, n, k, n, sizeof(int_text), 0);
-    // gSACA_K(Text, SA, n, k, sizeof(int_text), 1, 0);
-
-    uint_t *BWTsa = SA; // BWT overlapping SA
-    assert(n > 1);
-    // first BWT symbol
-    assert(SA[0] == n);
-    // 2nd, 3rd etc BWT symbols
-    for (long i = 0; i < n; i++) {
-        if (SA[i] == 0) { BWTsa[i] = 0; }
-        else { BWTsa[i] = Text[SA[i] - 1]; }
-    }
-
-    return BWTsa;
-}
-
-size_t compute_sigma(const uint32_t *parse, const size_t psize) {
-    uint32_t max = 0;
-    for (size_t i = 0; i < psize; i++) {
-        if (max < parse[i])
-            max = parse[i];
-    }
-    return (max + 1);
 }
 
 void calculate_word_frequencies(string &filename, size_t w, size_t p, map<uint64_t, word_stats> &wordFreq, vector<uint64_t> &parse, vector<char> &last) {
@@ -685,17 +643,17 @@ void generate_ilist(uint32_t *ilist, tfm_index &tfmp, uint64_t dwords) {
     }
 }
 
-void construct_tfm_index(tfm_index &tfm_index, uint_t *bwt, size_t psize) {
+tfm_index construct_tfm_index(vector<uint64_t> &bwt) {
 
     string bwt_filename = "bwt.tmp";
     FILE *fout = fopen(bwt_filename.c_str(), "wb");
-    fwrite(bwt, sizeof(bwt[0]), psize, fout);
+    fwrite(bwt.data(), sizeof(bwt[0]), bwt.size(), fout);
     fclose(fout);
 
-    sdsl::int_vector_buffer<> L(bwt_filename, std::ios::in, psize, 32, true);
-    sdsl::wt_blcd_int<> wt_L = sdsl::wt_blcd_int<>(L, psize);
+    sdsl::int_vector_buffer<> L(bwt_filename, std::ios::in, bwt.size(), 64, true);
+    sdsl::wt_blcd_int<> wt_L = sdsl::wt_blcd_int<>(L, bwt.size());
     std::vector<uint64_t> C = std::vector<uint64_t>(wt_L.sigma + 1, 0);
-    for (uint64_t i = 0; i < psize; i++) C[L[i] + 1] += 1;
+    for (uint64_t i = 0; i < bwt.size(); i++) C[L[i] + 1] += 1;
     for (uint64_t i = 0; i < wt_L.sigma; i++) C[i + 1] += C[i];
 
     std::pair<tfm_index::size_type, tfm_index::size_type> dbg_res;
@@ -711,37 +669,39 @@ void construct_tfm_index(tfm_index &tfm_index, uint_t *bwt, size_t psize) {
     dbg_algorithms::mark_prefix_intervals(wt_L, C, dout, din);
 
     string tmp_file_name = "construct_tfm_index.tmp";
-    {
-        sdsl::int_vector_buffer<> L_buf(tmp_file_name, std::ios::out);
 
-        tfm_index::size_type p = 0;
-        tfm_index::size_type q = 0;
-        for (tfm_index::size_type i = 0; i < wt_L.size(); i++) {
-            if (din[i] == 1) {
-                L_buf.push_back(wt_L[i]);
-                dout[p++] = dout[i];
-            }
-            if (dout[i] == 1) {
-                din[q++] = din[i];
-            }
+    sdsl::int_vector_buffer<> L_buf(tmp_file_name, std::ios::out);
+
+    tfm_index::size_type p = 0;
+    tfm_index::size_type q = 0;
+    for (tfm_index::size_type i = 0; i < wt_L.size(); i++) {
+        if (din[i] == 1) {
+            L_buf.push_back(wt_L[i]);
+            dout[p++] = dout[i];
         }
-        dout[p++] = 1;
-        din[q++] = 1;
-        dout.resize(p);
-        din.resize(q);
-
-        tfm_index.text_len = psize;
-        tfm_index.m_L = tfm_index::wt_type(L_buf, L_buf.size());
-        tfm_index.m_C = std::vector<uint64_t>(tfm_index.m_L.sigma + 1, 0);
-        for (uint64_t i = 0; i < L_buf.size(); i++) tfm_index.m_C[L_buf[i] + 1] += 1;
-        for (uint64_t i = 0; i < tfm_index.m_L.sigma; i++) tfm_index.m_C[i + 1] += tfm_index.m_C[i];
-        tfm_index.m_dout = tfm_index::bit_vector_type(std::move(dout));
-        sdsl::util::init_support(tfm_index.m_dout_select, &tfm_index.m_dout);
-        tfm_index.m_din = tfm_index::bit_vector_type(std::move(din));
-        sdsl::util::init_support(tfm_index.m_din_rank, &tfm_index.m_din);
+        if (dout[i] == 1) {
+            din[q++] = din[i];
+        }
     }
+    dout[p++] = 1;
+    din[q++] = 1;
+    dout.resize(p);
+    din.resize(q);
+
+    tfm_index tfm_index;
+    tfm_index.text_len = bwt.size();
+    tfm_index.m_L = tfm_index::wt_type(L_buf, L_buf.size());
+    tfm_index.m_C = std::vector<uint64_t>(tfm_index.m_L.sigma + 1, 0);
+    for (uint64_t i = 0; i < L_buf.size(); i++) tfm_index.m_C[L_buf[i] + 1] += 1;
+    for (uint64_t i = 0; i < tfm_index.m_L.sigma; i++) tfm_index.m_C[i + 1] += tfm_index.m_C[i];
+    tfm_index.m_dout = tfm_index::bit_vector_type(std::move(dout));
+    sdsl::util::init_support(tfm_index.m_dout_select, &tfm_index.m_dout);
+    tfm_index.m_din = tfm_index::bit_vector_type(std::move(din));
+    sdsl::util::init_support(tfm_index.m_din_rank, &tfm_index.m_din);
+
     sdsl::remove(tmp_file_name);
     sdsl::remove(bwt_filename);
+    return tfm_index;
 }
 
 void unparse(string &filename, size_t w, tfm_index &wg_parse, struct Dict &dict, tfm_index &wg_text) {
@@ -785,7 +745,6 @@ void print_help(char **argv) {
 
 Args parse_args(int argc, char **argv) {
     extern char *optarg;
-    extern int optind;
 
     Args arg;
     int c;
@@ -818,13 +777,26 @@ Args parse_args(int argc, char **argv) {
     return arg;
 }
 
-int main(int argc, char **argv) {
-    Args arg = parse_args(argc, argv);
+vector<uint64_t> remapParse(map<uint64_t, word_stats> &wfreq, vector<uint64_t> &parse) {
+    // recompute occ as an extra check
+    // size_t n = parse.size() + 1;
+    // uint32_t *new_parse = new uint32_t[n];
+    vector<uint64_t> new_parse{};
 
+    vector<uint32_t> occ(wfreq.size() + 1, 0); // ranks are zero based
+    for (uint64_t hash : parse) {
+        uint32_t rank = wfreq.at(hash).rank;
+        occ[rank]++;
+        new_parse.push_back(rank);
+    }
+    new_parse.push_back(0);
+    return new_parse;
+}
+
+void pf_parse(string &input, size_t w, size_t p, vector<uint64_t> &parse, Dict &dict) {
     map<uint64_t, word_stats> wordFreq;
-    vector<uint64_t> parse{};
     vector<char> last{}; // this is maybe not needed
-    calculate_word_frequencies(arg.input, arg.w, arg.p, wordFreq, parse, last);
+    calculate_word_frequencies(input, w, p, wordFreq, parse, last);
 
     // create array of dictionary words
     vector<const string *> dictArray;
@@ -836,22 +808,83 @@ int main(int argc, char **argv) {
     // write plain dictionary, also compute rank for each hash
     vector<char> dictionary{};
     writeDictOcc(wordFreq, dictArray, dictionary);
-    struct Dict dict = read_dictionary(dictionary);
-
     dictArray.clear(); // reclaim memory
 
-    size_t n = parse.size() + 1;
-    uint32_t *p = new uint32_t[n];
-    remapParse(wordFreq, parse, p);
-    size_t sigma = compute_sigma(p, parse.size());
-    uint_t *bwt = compute_BWT(p, n, sigma);
-    delete[] p;
+    dict = read_dictionary(dictionary);
+    parse = remapParse(wordFreq, parse);
+}
 
-    tfm_index tfm;
-    construct_tfm_index(tfm, bwt, n);
+// uint_t *compute_bwt(vector<uint64_t> &text) {
+//     // size_t sigma = compute_sigma(text, text.size());
+//     // size_t compute_sigma(const uint32_t *parse, const size_t psize) {
+//     uint64_t sigma = 183416 + 1 + 2;
+//     // for (size_t i = 0; i < text.size(); i++) {
+//     //     if (sigma < text[i])
+//     //         sigma = text[i];
+//     // }
+//     // sigma++;
+//     // return (max + 1);
+//     // }
 
-    tfm_index unparsed;
-    unparse(arg.input, arg.w, tfm, dict, unparsed);
+//     // uint_t *bwt = compute_BWT(text, text.size() + 1, sigma);
+//     // uint_t *compute_BWT(uint32_t *Text, long n, long k) {
+//     // uint_t n = text.size() + 1;
+//     uint_t *SA = (uint_t *)malloc((text.size()+1) * sizeof(*SA));
+//     uint_t *t  = (uint_t *)malloc((text.size()+5) * sizeof(*t));
+//     for (size_t i = 0; i < text.size(); i++) { t[i] = (uint_t)text[i] + 2; }
+//     t[text.size()] = 0;
+//     gsacak_int(t, SA, NULL, NULL, text.size()+1, sigma);
+
+//     uint_t *BWTsa = SA; // BWT overlapping SA
+//     for (uint64_t i = 0; i < text.size(); i++) {
+//         if (SA[i] == 0) { BWTsa[i] = 0; }
+//         else { BWTsa[i] = t[SA[i] - 1]; }
+//     }
+
+//     return BWTsa;
+// }
+
+vector<uint64_t> compute_bwt(vector<uint64_t> &text) {
+    uint64_t sigma = 0; // = 183416 + 1 + 2;
+    for (size_t i = 0; i < text.size(); i++) {
+        if (sigma < text[i])
+            sigma = text[i];
+    }
+    sigma += 1 + 2;
+    // +1 because {0,1,2} => 3, +2 because gsacak reserves 0 and 1
+    // so all number needs to be shifted
+
+    size_t n = text.size() + 2;
+    // appending 1 ends "words", appending 0 ends input to gsacak
+
+    uint32_t *t = (uint32_t *)malloc(n * sizeof(*t));
+    for (size_t i = 0; i < text.size(); i++) t[i] = text[i]+2;
+    t[n-2] = 1; t[n-1] = 0;
+
+    uint32_t *sa = (uint32_t *)malloc(n * sizeof(*sa));
+    gsacak_int(t, sa, NULL, NULL, n, sigma);
+
+    vector<uint64_t> bwt{};
+    for (size_t i = 0; i < n; i++) {
+        if (sa[i] == 0) { bwt.push_back(0); continue; }
+        if (t[sa[i]-1] == 1) continue;
+        if (t[sa[i]-1] == 2) continue;
+        bwt.push_back(t[sa[i]-1]-2);
+    }
+    free(sa);
+    free(t);
+    return bwt;
+}
+
+int main(int argc, char **argv) {
+    Args arg = parse_args(argc, argv);
+
+    vector<uint64_t> parse{};
+    Dict dict;
+    pf_parse(arg.input, arg.w, arg.p, parse, dict);
+    vector<uint64_t> bwt = compute_bwt(parse);
+    tfm_index tfm = construct_tfm_index(bwt);
+    tfm_index unparsed; unparse(arg.input, arg.w, tfm, dict, unparsed);         // TODO: merge
 
     store_to_file(unparsed, arg.output);
     return 0;

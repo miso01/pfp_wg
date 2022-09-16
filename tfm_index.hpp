@@ -47,8 +47,10 @@ class tfm_index {
 
   private:
 
-    typedef uint32_t uint_t;
-    friend void construct_tfm_index(tfm_index &tfm_index, uint_t *bwt, size_t psize);
+    // typedef uint32_t uint_t;
+    // friend void construct_tfm_index(tfm_index &tfm_index, uint_t *bwt, size_t psize);
+
+    friend tfm_index construct_tfm_index(std::vector<uint64_t> &bwt);
 
     // constructor for gSACAK
     friend void construct_tfm_index(

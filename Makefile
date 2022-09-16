@@ -14,8 +14,7 @@ build: $(EXECS)
 test: build
 	./tfm_index_construct.x -w 4 -p 50 -i data/yeast.raw -o data/yeast.wg
 	./tfm_index_invert.x data/yeast.raw
-	cmp data/yeast.raw.untunneled data/yeast.raw \
-	&& echo "Output is correct."
+	cmp data/yeast.raw.untunneled data/yeast.raw && echo "Output is correct."
 
 clean:
 	rm -f *.o *.x
