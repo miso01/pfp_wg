@@ -478,7 +478,7 @@ void store_bwt(string &filename, size_t w, uint8_t *d, long dsize, uint64_t *end
     fclose(fbwt);
 }
 
-void din(string &filename, size_t w, uint8_t *d, long dsize, tfm_index &tfmp, long dwords, uint_t *sa, int_t *lcp) {
+void store_din(string &filename, size_t w, uint8_t *d, long dsize, tfm_index &tfmp, long dwords, uint_t *sa, int_t *lcp) {
     // starting point in ilist for each word and # words
 
     // derive eos from sa. for i=0...dwords-1, eos[i] is the eos position of
@@ -538,7 +538,7 @@ void din(string &filename, size_t w, uint8_t *d, long dsize, tfm_index &tfmp, lo
     fclose(fdin);
 }
 
-void dout(string &filename, size_t w, uint8_t *d, long dsize, tfm_index &tfmp, long dwords, uint_t *sa, int_t *lcp) {
+void store_dout(string &filename, size_t w, uint8_t *d, long dsize, tfm_index &tfmp, long dwords, uint_t *sa, int_t *lcp) {
     // derive eos from sa. for i=0...dwords-1, eos[i] is the eos position of
     // string i in d
     uint_t *eos = sa + 1;
@@ -658,8 +658,7 @@ tfm_index create_tfm(sdsl::int_vector_buffer<> &L_buf, sdsl::bit_vector &din, sd
     return tfm_index;
 }
 
-void unparse(string &filename, size_t w, tfm_index &wg_parse, struct Dict &dict, tfm_index &wg_text) {
-// tfm_index unparse(tfm_index &wg_parse, Dict &dict, size_t w) {
+tfm_index unparse(tfm_index &wg_parse, Dict &dict, size_t w) {
     uint32_t *ilist = new uint32_t[wg_parse.L.size() - 1];
     generate_ilist(ilist, wg_parse, dict.dwords);
 
@@ -667,23 +666,19 @@ void unparse(string &filename, size_t w, tfm_index &wg_parse, struct Dict &dict,
     int_t *lcp;
     compute_dict_bwt_lcp(dict.d, dict.dsize, dict.dwords, w, &sa, &lcp);
 
+    string filename = "data/yeast.raw";
     store_bwt(filename , w, dict.d, dict.dsize, dict.end, ilist, wg_parse, dict.dwords, sa, lcp);
-    din(filename, w, dict.d, dict.dsize, wg_parse, dict.dwords, sa, lcp);
-    dout(filename, w, dict.d, dict.dsize, wg_parse, dict.dwords, sa, lcp);
+    sdsl::int_vector_buffer<> L_buf(filename + ".L", std::ios::in, 1024*1024, 8, true);
 
-    // string bwt = "data/yeast.raw";
-    // store_bwt(bwt , w, dict.d, dict.dsize, dict.end, ilist, wg_parse, dict.dwords, sa, lcp);
-    // sdsl::int_vector_buffer<> L_buf(bwt + ".L", std::ios::out);
+    string din_file = "data/yeast.raw";
+    store_din(din_file, w, dict.d, dict.dsize, wg_parse, dict.dwords, sa, lcp);
+    sdsl::bit_vector din;
+    load_vector_from_file(din, din_file + ".din");
 
-    // string din_file = "data/yeast.raw";
-    // din(din_file, w, dict.d, dict.dsize, wg_parse, dict.dwords, sa, lcp);
-    // sdsl::bit_vector din;
-    // load_vector_from_file(din, din_file + ".din");
-
-    // string dout_file = "data/yeast.raw";
-    // dout(dout_file, w, dict.d, dict.dsize, wg_parse, dict.dwords, sa, lcp);
-    // sdsl::bit_vector dout;
-    // load_vector_from_file(dout, dout_file + ".dout");
+    string dout_file = "data/yeast.raw";
+    store_dout(dout_file, w, dict.d, dict.dsize, wg_parse, dict.dwords, sa, lcp);
+    sdsl::bit_vector dout;
+    load_vector_from_file(dout, dout_file + ".dout");
 
     delete[] ilist;
     delete[] dict.d;
@@ -691,8 +686,7 @@ void unparse(string &filename, size_t w, tfm_index &wg_parse, struct Dict &dict,
     delete[] lcp;
     delete[] sa;
 
-    return;
-    // return create_tfm(L_buf, din, dout);
+    return create_tfm(L_buf, din, dout);
 }
 
 //------------------------------------------------------------------------------
@@ -883,8 +877,7 @@ int main(int argc, char **argv) {
     pf_parse(arg.input, arg.w, arg.p, parse, dict);
     vector<uint64_t> bwt = compute_bwt(parse);
     tfm_index tfm = construct_tfm_index(bwt);
-    tfm_index unparsed; unparse(arg.input, arg.w, tfm, dict, unparsed);         // TODO: merge
-    // tfm_index unparsed = unparse(tfm, dict, arg.w);
+    tfm_index unparsed = unparse(tfm, dict, arg.w);
 
     store_to_file(unparsed, arg.output);
     return 0;
