@@ -346,7 +346,7 @@ void write_bitvector(FILE *f, bool bit, uint8_t &cnt, uint8_t &buffer, bool hard
     }
 }
 
-void store_bwt(string &filename, size_t w, uint8_t *d, long dsize, uint64_t *end_to_phrase, uint32_t *ilist, tfm_index &tfmp, long dwords, uint_t *sa, int_t *lcp) {
+vector<char> store_bwt(size_t w, uint8_t *d, long dsize, uint64_t *end_to_phrase, uint32_t *ilist, tfm_index &tfmp, long dwords, uint_t *sa, int_t *lcp) {
     // starting point in ilist for each word and # words
     // set d[0]==0 as this is the EOF char in the final BWT
     assert(d[0] == Dollar);
@@ -358,8 +358,6 @@ void store_bwt(string &filename, size_t w, uint8_t *d, long dsize, uint64_t *end
     for (int i = 0; i < dwords - 1; i++)
         assert(eos[i] < eos[i + 1]);
 
-    // open output file
-    // FILE *fbwt = open_aux_file(filename.c_str(), "L", "wb");
     vector<char> out{};
 
     // main loop: consider each entry in the SA of dict
@@ -465,11 +463,7 @@ void store_bwt(string &filename, size_t w, uint8_t *d, long dsize, uint64_t *end
     }
     assert(full_words == dwords);
 
-    FILE *fbwt = open_aux_file(filename.c_str(), "L", "wb");
-    for (char c: out) {
-        if (fputc(c, fbwt) == EOF) die("L write error 0");
-    }
-    fclose(fbwt);
+    return out;
 }
 
 void store_din(string &filename, size_t w, uint8_t *d, long dsize, tfm_index &tfmp, long dwords, uint_t *sa, int_t *lcp) {
@@ -680,9 +674,13 @@ tfm_index unparse(tfm_index &wg_parse, Dict &dict, size_t w) {
     int_t *lcp;
     compute_dict_bwt_lcp(dict.d, dict.dsize, dict.dwords, w, &sa, &lcp);
 
-    string filename = "data/yeast.raw";
-    store_bwt(filename , w, dict.d, dict.dsize, dict.end, ilist, wg_parse, dict.dwords, sa, lcp);
-    int_vector_buffer<> L_buf(filename + ".L", std::ios::in, 1024*1024, 8, true);
+    vector<char> l_array = store_bwt(w, dict.d, dict.dsize, dict.end, ilist, wg_parse, dict.dwords, sa, lcp);
+
+    string filename = "data/yeast.raw.L";
+    FILE *fbwt = fopen(filename.c_str(), "wb");
+    for (char c: l_array) { if (fputc(c, fbwt) == EOF) die("L write error 0"); }
+    fclose(fbwt);
+    int_vector_buffer<> L_buf(filename, std::ios::in, 1024*1024, 8, true);
 
     string din_file = "data/yeast.raw";
     store_din(din_file, w, dict.d, dict.dsize, wg_parse, dict.dwords, sa, lcp);
