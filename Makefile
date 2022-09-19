@@ -17,12 +17,7 @@ test: build
 	cmp data/yeast.raw.untunneled data/yeast.raw && echo "Output is correct."
 
 clean:
-	rm -f *.o *.x
-	rm -f data/yeast.raw.* data/yeast.wg
-
-# libs
-%.o: %.c %.h
-	$(CC) $(CFLAGS) -c -o $@ $<
+	rm -f data/yeast.raw.* data/yeast.wg* *.x
 
 # g++ -std=c++11 -Wall -Wextra -o tfm_index_construct.x tfm_index_construct.cpp gsacak.o utils.o -lsdsl
 tfm_index_construct.x: tfm_index_construct.cpp

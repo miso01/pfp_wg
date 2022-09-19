@@ -58,9 +58,8 @@ void construct_from_pfwg(tfm_index &tfm_index, const std::string basename) {
     sdsl::int_vector<1> din, dout;
     din.resize(size + 1);
     dout.resize(size + 1);
-    load_bitvector(
-        din, basename + ".din", size + 1
-    ); // one additional bit at the end
+    // one additional bit at the end
+    load_bitvector(din, basename + ".din", size + 1);
     load_bitvector(dout, basename + ".dout", size + 1);
 
     typedef ::tfm_index::wt_type wt_type;

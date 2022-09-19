@@ -658,6 +658,26 @@ tfm_index create_tfm(sdsl::int_vector_buffer<> &L_buf, sdsl::bit_vector &din, sd
     return tfm_index;
 }
 
+void load_bitvector(sdsl::int_vector<1> &B, const std::string filename, const uint64_t n) {
+    FILE *fin = fopen(filename.c_str(), "rb");
+    uint64_t cnt = 0;
+    uint8_t buffer = 0;
+    for (uint64_t i = 0; i < (n + 7) / 8; i++) {
+        int e = fread(&buffer, sizeof(uint8_t), 1, fin);
+        if (e < 0)
+            std::cout << "ERROR during bitvector loading!" << std::endl;
+        // std::cout << (int) buffer << std::endl;
+        for (int j = 0; j < 8; j++) {
+            bool bit = 1 & (buffer >> (7 - j));
+            B[cnt++] = bit;
+            if (cnt == n) {
+                fclose(fin);
+                return;
+            }
+        }
+    }
+}
+
 tfm_index unparse(tfm_index &wg_parse, Dict &dict, size_t w) {
     uint32_t *ilist = new uint32_t[wg_parse.L.size() - 1];
     generate_ilist(ilist, wg_parse, dict.dwords);
@@ -674,11 +694,13 @@ tfm_index unparse(tfm_index &wg_parse, Dict &dict, size_t w) {
     store_din(din_file, w, dict.d, dict.dsize, wg_parse, dict.dwords, sa, lcp);
     sdsl::bit_vector din;
     load_vector_from_file(din, din_file + ".din");
+    // load_bitvector(din, din_file + ".din", L_buf.size() + 1);
 
     string dout_file = "data/yeast.raw";
     store_dout(dout_file, w, dict.d, dict.dsize, wg_parse, dict.dwords, sa, lcp);
     sdsl::bit_vector dout;
     load_vector_from_file(dout, dout_file + ".dout");
+    //load_bitvector(dout, dout_file + ".dout", L_buf.size() + 1);
 
     delete[] ilist;
     delete[] dict.d;
@@ -687,6 +709,28 @@ tfm_index unparse(tfm_index &wg_parse, Dict &dict, size_t w) {
     delete[] sa;
 
     return create_tfm(L_buf, din, dout);
+}
+
+void write_tfm(tfm_index &unparsed, string &output) {
+    FILE *fbwt = open_aux_file(output.c_str(), "L2", "wb");
+    for (char c : unparsed.L) {
+        fputc(c, fbwt);
+    }
+    fclose(fbwt);
+
+    uint8_t cnt = 0, buffer = 0;
+    FILE *fdin = open_aux_file(output.c_str(), "din2", "wb");
+    for (auto b : unparsed.din) {
+        write_bitvector(fdin, b, cnt, buffer);
+    }
+    fclose(fdin);
+
+    cnt = 0, buffer = 0;
+    FILE *fdout = open_aux_file(output.c_str(), "dout2", "wb");
+    for (auto b : unparsed.dout) {
+        write_bitvector(fdout, b, cnt, buffer);
+    }
+    fclose(fdout);
 }
 
 //------------------------------------------------------------------------------
@@ -879,6 +923,17 @@ int main(int argc, char **argv) {
     tfm_index tfm = construct_tfm_index(bwt);
     tfm_index unparsed = unparse(tfm, dict, arg.w);
 
+    // write_tfm(unparsed, arg.output);
     store_to_file(unparsed, arg.output);
-    return 0;
+    // tfm_index loaded;
+    // load_from_file(loaded, arg.output);
+    // store_to_file(loaded, arg.output + ".2");
+
+    // vector<char> untunneled{};
+    // auto p = loaded.end();
+    // for (size_t i = 0; i < loaded.size(); i++) {
+    //     char c = (char)loaded.backwardstep(p);
+    //     untunneled.push_back(c);
+    // }
+    // return 0;
 }
