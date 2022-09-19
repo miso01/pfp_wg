@@ -332,54 +332,6 @@ struct SeqId {
 
 bool SeqId::operator<(const SeqId &a) { return *bwtpos > *(a.bwtpos); }
 
-static void fwrite_chars_same_suffix(vector<uint32_t> &id2merge, vector<uint8_t> &char2write, tfm_index &tfmp, uint32_t *ilist, FILE *fbwt, long &easy_bwts, long &hard_bwts) {
-    size_t numwords =
-        id2merge.size(); // numwords dictionary words contain the same suffix
-    bool samechar = true;
-    for (size_t i = 1; (i < numwords) && samechar; i++) {
-        samechar = (char2write[i - 1] == char2write[i]);
-    }
-
-    if (samechar) {
-        for (size_t i = 0; i < numwords; i++) {
-            uint32_t s = id2merge[i] + 1;
-            for (uint64_t j = tfmp.C[s]; j < tfmp.C[s + 1]; j++) {
-                if (fputc(char2write[0], fbwt) == EOF)
-                    die("L write error 1");
-            }
-            easy_bwts += tfmp.C[s + 1] - tfmp.C[s];
-        }
-    } else {
-        // many words, many chars...
-        vector<SeqId> heap; // create heap
-        for (size_t i = 0; i < numwords; i++) {
-            uint32_t s = id2merge[i] + 1;
-            // cout << "phrase: " << s << " pos: " << ilist[tfmp.C[s]-1] <<
-            // endl;
-            heap.push_back(SeqId(
-                s, tfmp.C[s + 1] - tfmp.C[s], ilist + (tfmp.C[s] - 1),
-                char2write[i]
-            ));
-        }
-        std::make_heap(heap.begin(), heap.end());
-        while (heap.size() > 0) {
-            // output char for the top of the heap
-            SeqId s = heap.front();
-            if (fputc(s.char2write, fbwt) == EOF)
-                die("L write error 2");
-            hard_bwts += 1;
-            // remove top
-            pop_heap(heap.begin(), heap.end());
-            heap.pop_back();
-            // if remaining positions, reinsert to heap
-            if (s.next()) {
-                heap.push_back(s);
-                push_heap(heap.begin(), heap.end());
-            }
-        }
-    }
-}
-
 inline uint8_t get_prev(int w, uint8_t *d, uint64_t *end, uint32_t seqid) {
     return d[end[seqid] - w - 1];
 }
@@ -396,7 +348,6 @@ void write_bitvector(FILE *f, bool bit, uint8_t &cnt, uint8_t &buffer, bool hard
 
 void store_bwt(string &filename, size_t w, uint8_t *d, long dsize, uint64_t *end_to_phrase, uint32_t *ilist, tfm_index &tfmp, long dwords, uint_t *sa, int_t *lcp) {
     // starting point in ilist for each word and # words
-
     // set d[0]==0 as this is the EOF char in the final BWT
     assert(d[0] == Dollar);
     d[0] = 0;
@@ -408,7 +359,8 @@ void store_bwt(string &filename, size_t w, uint8_t *d, long dsize, uint64_t *end
         assert(eos[i] < eos[i + 1]);
 
     // open output file
-    FILE *fbwt = open_aux_file(filename.c_str(), "L", "wb");
+    // FILE *fbwt = open_aux_file(filename.c_str(), "L", "wb");
+    vector<char> out{};
 
     // main loop: consider each entry in the SA of dict
     long full_words = 0, easy_bwts = 0, hard_bwts = 0, next;
@@ -418,7 +370,6 @@ void store_bwt(string &filename, size_t w, uint8_t *d, long dsize, uint64_t *end
         next = i + 1; // prepare for next iteration
         // compute length of this suffix and sequence it belongs
         int_t suffixLen = getlen(sa[i], eos, dwords, &seqid);
-        // cout << suffixLen << " " << seqid << endl;
         //  ignore suffixes of lenght <= w
         if (suffixLen <= (int_t)w)
             continue;
@@ -434,13 +385,11 @@ void store_bwt(string &filename, size_t w, uint8_t *d, long dsize, uint64_t *end
                         if (tfmp.L[pos] == 0)
                             pos = 0;
                         uint32_t act_phrase = tfmp.L[pos] - 1;
-                        uint8_t char_to_write =
-                            get_prev(w, d, end_to_phrase, act_phrase);
+                        uint8_t char_to_write = get_prev(w, d, end_to_phrase, act_phrase);
                         easy_bwts++;
-                        // cout << easy_bwts + hard_bwts << " " << seqid << " "
-                        // << char_to_write << endl;
-                        if (fputc(char_to_write, fbwt) == EOF)
-                            die("L write error 0");
+                        out.push_back(char_to_write);
+                        // if (fputc(char_to_write, fbwt) == EOF)
+                            // die("L write error 0");
                         if (tfmp.dout[++pos] == 1)
                             break;
                     }
@@ -470,12 +419,56 @@ void store_bwt(string &filename, size_t w, uint8_t *d, long dsize, uint64_t *end
             }
             // output to fbwt the bwt chars corresponding to the current
             // dictionary suffix, and, if requested, some SA values
-            fwrite_chars_same_suffix(
-                id2merge, char2write, tfmp, ilist, fbwt, easy_bwts, hard_bwts
-            );
+            // fwrite_chars_same_suffix(id2merge, char2write, tfmp, ilist, fbwt, easy_bwts, hard_bwts);
+            // static void fwrite_chars_same_suffix(vector<uint32_t> &id2merge, vector<uint8_t> &char2write, tfm_index &tfmp, uint32_t *ilist, FILE *fbwt, long &easy_bwts, long &hard_bwts) {
+            size_t numwords = id2merge.size(); // numwords dictionary words contain the same suffix
+            bool samechar = true;
+            for (size_t i = 1; (i < numwords) && samechar; i++) {
+                samechar = (char2write[i - 1] == char2write[i]);
+            }
+
+            if (samechar) {
+                for (size_t i = 0; i < numwords; i++) {
+                    uint32_t s = id2merge[i] + 1;
+                    for (uint64_t j = tfmp.C[s]; j < tfmp.C[s + 1]; j++) {
+                        out.push_back(char2write[0]);
+                    }
+                    easy_bwts += tfmp.C[s + 1] - tfmp.C[s];
+                }
+            } else {
+                // many words, many chars...
+                vector<SeqId> heap; // create heap
+                for (size_t i = 0; i < numwords; i++) {
+                    uint32_t s = id2merge[i] + 1;
+                    heap.push_back(SeqId(
+                        s, tfmp.C[s + 1] - tfmp.C[s], ilist + (tfmp.C[s] - 1),
+                        char2write[i]
+                    ));
+                }
+                std::make_heap(heap.begin(), heap.end());
+                while (heap.size() > 0) {
+                    // output char for the top of the heap
+                    SeqId s = heap.front();
+                    out.push_back(s.char2write);
+                    hard_bwts += 1;
+                    // remove top
+                    pop_heap(heap.begin(), heap.end());
+                    heap.pop_back();
+                    // if remaining positions, reinsert to heap
+                    if (s.next()) {
+                        heap.push_back(s);
+                        push_heap(heap.begin(), heap.end());
+                    }
+                }
+            }
         }
     }
     assert(full_words == dwords);
+
+    FILE *fbwt = open_aux_file(filename.c_str(), "L", "wb");
+    for (char c: out) {
+        if (fputc(c, fbwt) == EOF) die("L write error 0");
+    }
     fclose(fbwt);
 }
 
@@ -689,17 +682,17 @@ tfm_index unparse(tfm_index &wg_parse, Dict &dict, size_t w) {
 
     string filename = "data/yeast.raw";
     store_bwt(filename , w, dict.d, dict.dsize, dict.end, ilist, wg_parse, dict.dwords, sa, lcp);
-    sdsl::int_vector_buffer<> L_buf(filename + ".L", std::ios::in, 1024*1024, 8, true);
+    int_vector_buffer<> L_buf(filename + ".L", std::ios::in, 1024*1024, 8, true);
 
     string din_file = "data/yeast.raw";
     store_din(din_file, w, dict.d, dict.dsize, wg_parse, dict.dwords, sa, lcp);
-    sdsl::bit_vector din;
+    bit_vector din;
     load_vector_from_file(din, din_file + ".din");
     // load_bitvector(din, din_file + ".din", L_buf.size() + 1);
 
     string dout_file = "data/yeast.raw";
     store_dout(dout_file, w, dict.d, dict.dsize, wg_parse, dict.dwords, sa, lcp);
-    sdsl::bit_vector dout;
+    bit_vector dout;
     load_vector_from_file(dout, dout_file + ".dout");
     //load_bitvector(dout, dout_file + ".dout", L_buf.size() + 1);
 
