@@ -27,6 +27,7 @@
 
 #include <sdsl/util.hpp>
 #include "tfm_index.hpp"
+#include "dbg_algorithms.hpp"
 
 extern "C" {
 #include "gsacak.c"
@@ -864,18 +865,16 @@ tfm_index construct_tfm_index(vector<uint64_t> &bwt) {
     for (uint64_t i = 0; i < bwt.size(); i++) C[L[i] + 1] += 1;
     for (uint64_t i = 0; i < wt_L.sigma; i++) C[i + 1] += C[i];
 
-    std::pair<tfm_index::size_type, tfm_index::size_type> dbg_res;
-
     sdsl::bit_vector B;
-    {
-        dbg_res = dbg_algorithms::find_min_dbg(wt_L, C, B);
-    }
+    std::pair<tfm_index::size_type, tfm_index::size_type> dbg_res;
+    dbg_res = dbg_algorithms::find_min_dbg(wt_L, C, B);
 
     sdsl::bit_vector dout = B;
     sdsl::bit_vector din;
     std::swap(din, B);
     dbg_algorithms::mark_prefix_intervals(wt_L, C, dout, din);
 
+    sdsl::remove(bwt_filename);
     string tmp_file_name = "construct_tfm_index.tmp";
 
     sdsl::int_vector_buffer<> L_buf(tmp_file_name, std::ios::out);
@@ -896,20 +895,9 @@ tfm_index construct_tfm_index(vector<uint64_t> &bwt) {
     dout.resize(p);
     din.resize(q);
 
-    // tfm_index tfm_index = create_tfm(L_buf, din, dout);
-    tfm_index tfm_index;
-    tfm_index.text_len = bwt.size();
-    tfm_index.m_L = tfm_index::wt_type(L_buf, L_buf.size());
-    tfm_index.m_C = std::vector<uint64_t>(tfm_index.m_L.sigma + 1, 0);
-    for (uint64_t i = 0; i < L_buf.size(); i++) tfm_index.m_C[L_buf[i] + 1] += 1;
-    for (uint64_t i = 0; i < tfm_index.m_L.sigma; i++) tfm_index.m_C[i + 1] += tfm_index.m_C[i];
-    tfm_index.m_dout = tfm_index::bit_vector_type(std::move(dout));
-    sdsl::util::init_support(tfm_index.m_dout_select, &tfm_index.m_dout);
-    tfm_index.m_din = tfm_index::bit_vector_type(std::move(din));
-    sdsl::util::init_support(tfm_index.m_din_rank, &tfm_index.m_din);
+    tfm_index tfm_index = create_tfm(L_buf, din, dout);
 
     sdsl::remove(tmp_file_name);
-    sdsl::remove(bwt_filename);
     return tfm_index;
 }
 

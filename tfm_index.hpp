@@ -21,23 +21,15 @@
 #include <string>
 #include <utility>
 
-#include "dbg_algorithms.hpp"
-
-typedef uint32_t sa_index_t;
-
-struct tfm_index_tag {};
 
 //! a class representing a tunneled fm-index
 class tfm_index {
   public:
-    typedef tfm_index_tag index_category;
-    typedef sdsl::byte_alphabet_tag alphabet_category;
+    typedef sdsl::int_vector<> text_type;
     typedef sdsl::int_vector<>::size_type size_type;
 
-    typedef sdsl::int_vector<> text_type;
-    typedef sdsl::wt_blcd_int<>::value_type value_type;
-
     typedef sdsl::wt_blcd_int<> wt_type;
+    typedef sdsl::wt_blcd_int<>::value_type value_type;
     typedef sdsl::wt_blcd_int<>::bit_vector_type bit_vector_type;
     typedef sdsl::wt_blcd_int<>::bit_vector_type::rank_1_type rank_type;
     typedef sdsl::wt_blcd_int<>::bit_vector_type::select_1_type select_type;
@@ -46,23 +38,8 @@ class tfm_index {
     typedef std::pair<size_type, size_type> nav_type;
 
   private:
-
-    // typedef uint32_t uint_t;
-    // friend void construct_tfm_index(tfm_index &tfm_index, uint_t *bwt, size_t psize);
-
-    friend tfm_index construct_tfm_index(std::vector<uint64_t> &bwt);
     friend tfm_index create_tfm(sdsl::int_vector_buffer<> &L_buf, sdsl::bit_vector &din, sdsl::bit_vector &dout);
-
-    // constructor for gSACAK
-    friend void construct_tfm_index(
-        tfm_index &tfm_index, std::string filename, const size_t psize,
-        sdsl::cache_config &config
-    );
-
-    // constructor for the .L, .din, .dout files
-    friend void construct_from_pfwg(
-        tfm_index &tfm_index, const std::string filename
-    );
+    friend void construct_from_pfwg(tfm_index &tfm_index, const std::string filename);
 
     size_type text_len; // original textlen
     wt_type m_L;
@@ -89,14 +66,6 @@ class tfm_index {
 
     //! returns the end, i.e. the position in L where the string ends
     nav_type end() const { return std::make_pair((size_type)0, (size_type)0); }
-
-    nav_type our_end() const {
-        auto end = std::make_pair((size_type)0, (size_type)0);
-        for (size_type i = 1; i < text_len; i++) {
-            backwardstep(end);
-        }
-        return end;
-    }
 
     //! returns the character preceding the current position
     value_type preceding_char(const nav_type &pos) const {
@@ -142,34 +111,26 @@ class tfm_index {
         );
         size_type written_bytes = 0;
         written_bytes += sdsl::write_member(text_len, out, child, "text_len");
-
         written_bytes += m_L.serialize(out, child, "L");
         written_bytes += sdsl::serialize(m_C, out, child, "C");
-
         written_bytes += m_dout.serialize(out, child, "dout");
         written_bytes += m_dout_rank.serialize(out, child, "dout_rank");
         written_bytes += m_dout_select.serialize(out, child, "dout_select");
-
         written_bytes += m_din.serialize(out, child, "din");
         written_bytes += m_din_rank.serialize(out, child, "din_rank");
         written_bytes += m_din_select.serialize(out, child, "din_select");
-
         sdsl::structure_tree::add_size(child, written_bytes);
         return written_bytes;
     };
 
     //! loads a serialized object
     void load(std::istream &in) {
-
         sdsl::read_member(text_len, in);
-
         m_L.load(in);
         sdsl::load(m_C, in);
-
         m_dout.load(in);
         m_dout_rank.load(in, &m_dout);
         m_dout_select.load(in, &m_dout);
-
         m_din.load(in);
         m_din_rank.load(in, &m_din);
         m_din_select.load(in, &m_din);
