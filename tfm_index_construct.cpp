@@ -7,6 +7,7 @@
 #include <iostream>
 #include <map>
 #include <random>
+#include <sdsl/int_vector.hpp>
 #include <sdsl/io.hpp>
 #include <sstream>
 #include <stdexcept>
@@ -466,7 +467,7 @@ vector<char> store_bwt(size_t w, uint8_t *d, long dsize, uint64_t *end_to_phrase
     return out;
 }
 
-void store_din(string &filename, size_t w, uint8_t *d, long dsize, tfm_index &tfmp, long dwords, uint_t *sa, int_t *lcp) {
+vector<bool> store_din(size_t w, uint8_t *d, long dsize, tfm_index &tfmp, long dwords, uint_t *sa, int_t *lcp) {
     // starting point in ilist for each word and # words
 
     // derive eos from sa. for i=0...dwords-1, eos[i] is the eos position of
@@ -475,13 +476,11 @@ void store_din(string &filename, size_t w, uint8_t *d, long dsize, tfm_index &tf
     for (int i = 0; i < dwords - 1; i++)
         assert(eos[i] < eos[i + 1]);
 
-    // open output file
-    FILE *fdin = open_aux_file(filename.c_str(), "din", "wb");
+    vector<bool> din{};
 
     // main loop: consider each entry in the SA of dict
     long next;
     uint32_t seqid;
-    uint8_t cnt = 0, buffer = 0;
     for (long i = dwords + w + 1; i < dsize; i = next) {
         // we are considering d[sa[i]....]
         next = i + 1; // prepare for next iteration
@@ -496,7 +495,9 @@ void store_din(string &filename, size_t w, uint8_t *d, long dsize, tfm_index &tf
             uint32_t start = tfmp.C[seqid + 1], end = tfmp.C[seqid + 2];
             assert(tfmp.din[start] == 1);
             for (uint32_t j = start; j < end; j++) {
-                write_bitvector(fdin, tfmp.din[j], cnt, buffer);
+                din.push_back(tfmp.din[j]);
+                // write_bitvector(fdin, tfmp.din[j], cnt, buffer);
+                // din.resize(din.capacity()*2);
             }
             continue; // proceed with next i
         } else {
@@ -519,11 +520,11 @@ void store_din(string &filename, size_t w, uint8_t *d, long dsize, tfm_index &tf
                     break;
             }
             for (int k = 0; k < bits_to_write; k++)
-                write_bitvector(fdin, 1, cnt, buffer);
+                din.push_back(1);
         }
     }
-    write_bitvector(fdin, 1, cnt, buffer, true);
-    fclose(fdin);
+    din.push_back(1);
+    return din;
 }
 
 void store_dout(string &filename, size_t w, uint8_t *d, long dsize, tfm_index &tfmp, long dwords, uint_t *sa, int_t *lcp) {
@@ -682,10 +683,19 @@ tfm_index unparse(tfm_index &wg_parse, Dict &dict, size_t w) {
     fclose(fbwt);
     int_vector_buffer<> L_buf(filename, std::ios::in, 1024*1024, 8, true);
 
-    string din_file = "data/yeast.raw";
-    store_din(din_file, w, dict.d, dict.dsize, wg_parse, dict.dwords, sa, lcp);
+    vector<bool> bdin = store_din(w, dict.d, dict.dsize, wg_parse, dict.dwords, sa, lcp);
+
+    string din_file = "data/yeast.raw.din";
+    FILE *fdin = fopen(din_file.c_str(), "wb");
+    uint8_t cnt = 0, buffer = 0;
+    for (size_t i = 0; i < bdin.size() - 1; i++) {
+        write_bitvector(fdin, bdin[i], cnt, buffer);
+    }
+    write_bitvector(fdin, 1, cnt, buffer, true);
+    fclose(fdin);
+
     bit_vector din;
-    load_vector_from_file(din, din_file + ".din");
+    load_vector_from_file(din, din_file);
     // load_bitvector(din, din_file + ".din", L_buf.size() + 1);
 
     string dout_file = "data/yeast.raw";
