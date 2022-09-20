@@ -38,7 +38,7 @@ class tfm_index {
     typedef std::pair<size_type, size_type> nav_type;
 
   private:
-    friend tfm_index create_tfm(sdsl::int_vector_buffer<> &L_buf, sdsl::bit_vector &din, sdsl::bit_vector &dout);
+    friend tfm_index create_tfm(size_t size, sdsl::int_vector_buffer<> &L_buf, sdsl::bit_vector &din, sdsl::bit_vector &dout);
     // friend void construct_from_pfwg(tfm_index &tfm_index, const std::string filename);
     friend tfm_index construct_from_pfwg(const std::string filename);
 

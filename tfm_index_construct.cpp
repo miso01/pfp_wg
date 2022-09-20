@@ -632,9 +632,9 @@ void generate_ilist(uint32_t *ilist, tfm_index &tfmp, uint64_t dwords) {
     }
 }
 
-tfm_index create_tfm(sdsl::int_vector_buffer<> &L_buf, sdsl::bit_vector &din, sdsl::bit_vector &dout) {
+tfm_index create_tfm(size_t size, sdsl::int_vector_buffer<> &L_buf, sdsl::bit_vector &din, sdsl::bit_vector &dout) {
     tfm_index tfm;
-    tfm.text_len = L_buf.size();
+    tfm.text_len = size;
     tfm.m_L = tfm_index::wt_type(L_buf, L_buf.size());
     tfm.m_C = vector<uint64_t>(tfm.m_L.sigma + 1, 0);
     for (uint64_t i = 0; i < L_buf.size(); i++) {
@@ -677,7 +677,7 @@ bit_vector create_from_boolvec(vector<bool> &v) {
     return b;
 }
 
-tfm_index unparse(tfm_index &wg_parse, Dict &dict, size_t w) {
+tfm_index unparse(tfm_index &wg_parse, Dict &dict, size_t w, size_t size) {
     uint32_t *ilist = new uint32_t[wg_parse.L.size() - 1];
     generate_ilist(ilist, wg_parse, dict.dwords);
 
@@ -697,12 +697,14 @@ tfm_index unparse(tfm_index &wg_parse, Dict &dict, size_t w) {
     fclose(fbwt);
     int_vector_buffer<> L_buf(filename, std::ios::in, 1024*1024, 8, true);
 
-    tfm_index tfm = create_tfm(L_buf, din, dout);
+    tfm_index tfm = create_tfm(size, L_buf, din, dout);
     remove(filename);
     return tfm;
 }
 
 void write_tfm(tfm_index &unparsed, string &output) {
+    cout << unparsed.size() << endl;
+
     string filename = output;
     filename += ".L";
     FILE *fbwt = fopen(filename.c_str(), "wb");
@@ -889,7 +891,7 @@ tfm_index construct_tfm_index(vector<uint64_t> &bwt) {
     dout.resize(p);
     din.resize(q);
 
-    tfm_index tfm_index = create_tfm(L_buf, din, dout);
+    tfm_index tfm_index = create_tfm(bwt.size(), L_buf, din, dout);
 
     sdsl::remove(tmp_file_name);
     return tfm_index;
@@ -913,10 +915,11 @@ int main(int argc, char **argv) {
 
     vector<uint64_t> parse{};
     Dict dict;
+    size_t size = 12156306; // yeast.raw
     pf_parse(arg.input, arg.w, arg.p, parse, dict);
     vector<uint64_t> bwt = compute_bwt(parse);
     tfm_index tfm = construct_tfm_index(bwt);
-    tfm_index unparsed = unparse(tfm, dict, arg.w);
+    tfm_index unparsed = unparse(tfm, dict, arg.w, size);
 
     write_tfm(unparsed, arg.input);
     // store_to_file(unparsed, arg.output);

@@ -49,9 +49,8 @@ void symbol_frequencies(std::vector<uint64_t> &C, sdsl::int_vector<8> &L) {
 }
 
 tfm_index construct_from_pfwg(const string basename) {
-    // find original string size
-    sdsl::int_vector<8> original;
-    load_vector_from_file(original, basename, 1);
+
+    size_t orig_size = 12156306;
 
     sdsl::int_vector<8> L;
     load_vector_from_file(L, basename + ".L", 1);
@@ -72,7 +71,7 @@ tfm_index construct_from_pfwg(const string basename) {
     int_vector_buffer<> buf(basename + ".L", std::ios::in, size, 8, true);
 
     tfm_index tfm;
-    tfm.text_len = original.size();
+    tfm.text_len = orig_size;
     tfm.m_L = wt_type(buf, size);
     // construct_im(tfm.m_L, L, 1);
 
@@ -109,7 +108,11 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    // load tunneled fm index
+    // find original string size
+    sdsl::int_vector<8> original;
+    load_vector_from_file(original, argv[1], 1);
+    cout << original.size() << endl;
+
     tfm_index tfm = construct_from_pfwg(argv[1]);
 
     string filename = argv[1];
