@@ -527,20 +527,18 @@ vector<bool> store_din(size_t w, uint8_t *d, long dsize, tfm_index &tfmp, long d
     return din;
 }
 
-void store_dout(string &filename, size_t w, uint8_t *d, long dsize, tfm_index &tfmp, long dwords, uint_t *sa, int_t *lcp) {
+vector<bool> store_dout(size_t w, uint8_t *d, long dsize, tfm_index &tfmp, long dwords, uint_t *sa, int_t *lcp) {
     // derive eos from sa. for i=0...dwords-1, eos[i] is the eos position of
     // string i in d
     uint_t *eos = sa + 1;
     for (int i = 0; i < dwords - 1; i++)
         assert(eos[i] < eos[i + 1]);
 
-    // open output file
-    FILE *fdout = open_aux_file(filename.c_str(), "dout", "wb");
+    vector<bool> dout{};
 
     // main loop: consider each entry in the SA of dict
     long next;
     uint32_t seqid;
-    uint8_t cnt = 0, buffer = 0;
     for (long i = dwords + w + 1; i < dsize; i = next) {
         // we are considering d[sa[i]....]
         next = i + 1; // prepare for next iteration
@@ -560,7 +558,7 @@ void store_dout(string &filename, size_t w, uint8_t *d, long dsize, tfm_index &t
                     if (tfmp.L[pos] == 0)
                         pos = 0;
                     while (1) {
-                        write_bitvector(fdout, tfmp.dout[pos], cnt, buffer);
+                        dout.push_back(tfmp.dout[pos]);
                         if (tfmp.dout[++pos] == 1)
                             break;
                     }
@@ -586,12 +584,13 @@ void store_dout(string &filename, size_t w, uint8_t *d, long dsize, tfm_index &t
                 } else
                     break;
             }
-            for (int k = 0; k < bits_to_write; k++)
-                write_bitvector(fdout, 1, cnt, buffer);
+            for (int k = 0; k < bits_to_write; k++) {
+                dout.push_back(1);
+            }
         }
     }
-    write_bitvector(fdout, 1, cnt, buffer, true);
-    fclose(fdout);
+    dout.push_back(1);
+    return dout;
 }
 
 Dict read_dictionary(vector<char> &dict) {
@@ -698,10 +697,19 @@ tfm_index unparse(tfm_index &wg_parse, Dict &dict, size_t w) {
     load_vector_from_file(din, din_file);
     // load_bitvector(din, din_file + ".din", L_buf.size() + 1);
 
-    string dout_file = "data/yeast.raw";
-    store_dout(dout_file, w, dict.d, dict.dsize, wg_parse, dict.dwords, sa, lcp);
+    vector<bool> bdout = store_dout(w, dict.d, dict.dsize, wg_parse, dict.dwords, sa, lcp);
+
+    string dout_file = "data/yeast.raw.dout";
+    FILE *fdout = fopen(dout_file.c_str(), "wb");
+    cnt = 0, buffer = 0;
+    for (size_t i = 0; i < bdout.size() - 1; i++) {
+        write_bitvector(fdout, bdout[i], cnt, buffer);
+    }
+    write_bitvector(fdout, 1, cnt, buffer, true);
+    fclose(fdout);
+
     bit_vector dout;
-    load_vector_from_file(dout, dout_file + ".dout");
+    load_vector_from_file(dout, dout_file);
     //load_bitvector(dout, dout_file + ".dout", L_buf.size() + 1);
 
     delete[] ilist;
