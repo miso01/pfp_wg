@@ -2,6 +2,7 @@
 #include <deque>
 #include <iostream>
 #include <map>
+#include <sdsl/int_vector.hpp>
 #include <utility>
 #include <vector>
 
@@ -55,20 +56,25 @@ tfm_index construct_from_pfwg(const string basename) {
     sdsl::int_vector<8> L;
     load_vector_from_file(L, basename + ".L", 1);
     uint64_t size = L.size();
-    sdsl::int_vector<1> din, dout;
+    // sdsl::int_vector<1> din, dout;
+
+    bit_vector din;
     din.resize(size + 1);
-    dout.resize(size + 1);
-    // one additional bit at the end
     load_bitvector(din, basename + ".din", size + 1);
+
+    bit_vector dout;
+    dout.resize(size + 1);
     load_bitvector(dout, basename + ".dout", size + 1);
 
     typedef ::tfm_index::wt_type wt_type;
     typedef ::tfm_index::bit_vector_type bv_type;
 
+    int_vector_buffer<> buf(basename + ".L", std::ios::in, size, 8, true);
+
     tfm_index tfm;
     tfm.text_len = original.size();
-    sdsl::int_vector_buffer<> buf(basename + ".L", std::ios::in, size, 8, true);
     tfm.m_L = wt_type(buf, size);
+    // construct_im(tfm.m_L, L, 1);
 
     symbol_frequencies(tfm.m_C, L);
     tfm.m_dout = bv_type(std::move(dout));

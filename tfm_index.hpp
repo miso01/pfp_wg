@@ -43,12 +43,12 @@ class tfm_index {
     friend tfm_index construct_from_pfwg(const std::string filename);
 
     size_type text_len; // original textlen
-    wt_type m_L;
+    sdsl::wt_blcd_int<> m_L;
     std::vector<size_type> m_C;
-    bit_vector_type m_dout;
+    sdsl::wt_blcd_int<>::bit_vector_type m_dout;
     rank_type m_dout_rank;
     select_type m_dout_select;
-    bit_vector_type m_din;
+    sdsl::wt_blcd_int<>::bit_vector_type m_din;
     rank_type m_din_rank;
     select_type m_din_select;
 
