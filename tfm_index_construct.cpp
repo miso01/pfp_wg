@@ -633,17 +633,20 @@ void generate_ilist(uint32_t *ilist, tfm_index &tfmp, uint64_t dwords) {
 }
 
 tfm_index create_tfm(sdsl::int_vector_buffer<> &L_buf, sdsl::bit_vector &din, sdsl::bit_vector &dout) {
-    tfm_index tfm_index;
-    tfm_index.text_len = L_buf.size();
-    tfm_index.m_L = tfm_index::wt_type(L_buf, L_buf.size());
-    tfm_index.m_C = std::vector<uint64_t>(tfm_index.m_L.sigma + 1, 0);
-    for (uint64_t i = 0; i < L_buf.size(); i++) tfm_index.m_C[L_buf[i] + 1] += 1;
-    for (uint64_t i = 0; i < tfm_index.m_L.sigma; i++) tfm_index.m_C[i + 1] += tfm_index.m_C[i];
-    tfm_index.m_dout = tfm_index::bit_vector_type(std::move(dout));
-    sdsl::util::init_support(tfm_index.m_dout_select, &tfm_index.m_dout);
-    tfm_index.m_din = tfm_index::bit_vector_type(std::move(din));
-    sdsl::util::init_support(tfm_index.m_din_rank, &tfm_index.m_din);
-    return tfm_index;
+    tfm_index tfm;
+    tfm.text_len = L_buf.size();
+    tfm.m_L = tfm_index::wt_type(L_buf, L_buf.size());
+    tfm.m_C = vector<uint64_t>(tfm.m_L.sigma + 1, 0);
+    for (uint64_t i = 0; i < L_buf.size(); i++) {
+        // cout << L_buf[i] + 1 << endl;
+        tfm.m_C[L_buf[i] + 1] += 1;
+    }
+    for (uint64_t i = 0; i < tfm.m_L.sigma; i++) tfm.m_C[i + 1] += tfm.m_C[i];
+    tfm.m_dout = tfm_index::bit_vector_type(std::move(dout));
+    sdsl::util::init_support(tfm.m_dout_select, &tfm.m_dout);
+    tfm.m_din = tfm_index::bit_vector_type(std::move(din));
+    sdsl::util::init_support(tfm.m_din_rank, &tfm.m_din);
+    return tfm;
 }
 
 void load_bitvector(sdsl::int_vector<1> &B, const std::string filename, const uint64_t n) {
@@ -694,7 +697,9 @@ tfm_index unparse(tfm_index &wg_parse, Dict &dict, size_t w) {
     fclose(fbwt);
     int_vector_buffer<> L_buf(filename, std::ios::in, 1024*1024, 8, true);
 
-    return create_tfm(L_buf, din, dout);
+    tfm_index tfm = create_tfm(L_buf, din, dout);
+    remove(filename);
+    return tfm;
 }
 
 void write_tfm(tfm_index &unparsed, string &output) {
@@ -848,14 +853,14 @@ tfm_index construct_tfm_index(vector<uint64_t> &bwt) {
     fwrite(bwt.data(), sizeof(bwt[0]), bwt.size(), fout);
     fclose(fout);
 
-    sdsl::int_vector_buffer<> L(bwt_filename, std::ios::in, bwt.size(), 64, true);
-    sdsl::wt_blcd_int<> wt_L = sdsl::wt_blcd_int<>(L, bwt.size());
-    std::vector<uint64_t> C = std::vector<uint64_t>(wt_L.sigma + 1, 0);
+    int_vector_buffer<> L(bwt_filename, std::ios::in, bwt.size(), 64, true);
+    wt_blcd_int<> wt_L = wt_blcd_int<>(L, bwt.size());
+    vector<uint64_t> C = vector<uint64_t>(wt_L.sigma + 1, 0);
     for (uint64_t i = 0; i < bwt.size(); i++) C[L[i] + 1] += 1;
     for (uint64_t i = 0; i < wt_L.sigma; i++) C[i + 1] += C[i];
 
-    sdsl::bit_vector B;
-    std::pair<tfm_index::size_type, tfm_index::size_type> dbg_res;
+    bit_vector B;
+    pair<tfm_index::size_type, tfm_index::size_type> dbg_res;
     dbg_res = dbg_algorithms::find_min_dbg(wt_L, C, B);
 
     sdsl::bit_vector dout = B;

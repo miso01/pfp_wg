@@ -17,7 +17,7 @@ test: build
 	cmp data/yeast.raw.untunneled data/yeast.raw && echo "Output is correct."
 
 clean:
-	rm -f data/yeast.raw.* data/yeast.wg* *.x
+	rm -f data/yeast.raw.* data/yeast.wg* *.x data/yeast.small.*
 
 tfm_index_construct.x: tfm_index_construct.cpp
 	$(CXX) $(CXX_FLAGS) -o $@ $^ -lsdsl
