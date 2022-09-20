@@ -79,6 +79,19 @@ void construct_from_pfwg(tfm_index &tfm_index, const std::string basename) {
     sdsl::util::init_support(tfm_index.m_din_select, &tfm_index.m_din);
 }
 
+void untunnel(tfm_index &tfm, string &filename) {
+    char *original = new char[tfm.size()];
+    auto p = tfm.end();
+    for (size_type i = 0; i < tfm.size(); i++) {
+        char c = (char)tfm.backwardstep(p);
+        original[tfm.size() - i - 1] = c;
+    }
+
+    FILE *fout = fopen(filename.c_str(), "w");
+    fwrite(original, sizeof(char), tfm.size(), fout);
+    fclose(fout);
+}
+
 int main(int argc, char **argv) {
     // check parameters
     if (argc < 2) {
@@ -91,21 +104,7 @@ int main(int argc, char **argv) {
     tfm_index tfm;
     construct_from_pfwg(tfm, argv[1]);
 
-    char *S = new char[tfm.size()];
-    auto p = tfm.end();
-    for (size_type i = 0; i < tfm.size(); i++) {
-        char c = (char)tfm.backwardstep(p);
-        S[tfm.size() - i - 1] = c;
-        // cout << "\t pos:" << p.first << " c: " << c << endl;
-    }
-
-    char *name;
-    int e = asprintf(&name, "%s.%s", argv[1], "untunneled");
-    if (e == -1) {
-        cout << "ERROR while creating the output file name!" << endl;
-        return 1;
-    }
-    FILE *fout = fopen(name, "w");
-    fwrite(S, sizeof(char), tfm.size(), fout);
-    fclose(fout);
+    string filename = argv[1];
+    filename += ".untunneled";
+    untunnel(tfm, filename);
 }

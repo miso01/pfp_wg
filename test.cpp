@@ -1,35 +1,37 @@
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
+#include <sdsl/int_vector.hpp>
+#include <vector>
 
-extern "C" {
-#include "gsacak.c"
-}
+#include <sdsl/io.hpp>
+#include <sdsl/util.hpp>
+#include "tfm_index.hpp"
 
 using namespace std;
+using namespace sdsl;
+
+bit_vector create_from_boolvec(vector<bool> &v) {
+    bit_vector b(v.size(), 0);
+    for (size_t i=0; i < v.size(); i++) {
+        b[i] = v[i];
+    }
+    return b;
+}
 
 int main() {
-    // 214414413310
-    // mississippi$
+    bit_vector b(10, 0);
+    b[1] = 1;
 
-    // 134420314411 -> 356642536633
-    // ipssm$pissii
-    uint32_t t[] = {2,1,4,4,1,4,4,1,3,3,1,0};
+    store_to_file(b, "tmp");
 
-    uint32_t *in = (uint32_t *)malloc((12+2) * sizeof(*in));
-    for (size_t i = 0; i < 12; i++) in[i] = t[i]+2;
-    in[12] = 1;
-    in[13] = 0;
+    bit_vector b2;
+    load_from_file(b2, "tmp");
 
-    uint32_t *SA = (uint32_t *)malloc((12+2) * sizeof(*SA));
+    vector<bool> b3{false, true, false, false, false, false, false, false, false, false};
+    bit_vector b4 = create_from_boolvec(b3);
+    store_to_file(b, "tmp2");
 
-    gsacak_int(in, SA, NULL, NULL, 12+2, 5+2);
 
-    for (size_t i = 0; i < 12 + 2; i++) {
-        if (SA[i] == 0) { cout << 0 << " "; continue; }
-        if (in[SA[i]-1] == 1) continue;
-        if (in[SA[i]-1] == 2) continue;
-        else cout << in[SA[i] - 1]-2 << " ";
-    }
-    cout << endl;
 }

@@ -910,6 +910,19 @@ tfm_index construct_tfm_index(vector<uint64_t> &bwt) {
     return tfm_index;
 }
 
+void untunnel(tfm_index &tfm, string &filename) {
+    char *original = new char[tfm.size()];
+    auto p = tfm.end();
+    for (sdsl::int_vector<>::size_type i = 0; i < tfm.size(); i++) {
+        char c = (char)tfm.backwardstep(p);
+        original[tfm.size() - i - 1] = c;
+    }
+
+    FILE *fout = fopen(filename.c_str(), "w");
+    fwrite(original, sizeof(char), tfm.size(), fout);
+    fclose(fout);
+}
+
 int main(int argc, char **argv) {
     Args arg = parse_args(argc, argv);
 
@@ -921,16 +934,11 @@ int main(int argc, char **argv) {
     tfm_index unparsed = unparse(tfm, dict, arg.w);
 
     // write_tfm(unparsed, arg.output);
-    store_to_file(unparsed, arg.output);
+    // store_to_file(unparsed, arg.output);
     // tfm_index loaded;
     // load_from_file(loaded, arg.output);
-    // store_to_file(loaded, arg.output + ".2");
+    // string filename = arg.input + ".untunneled";
+    // untunnel(loaded, filename);
 
-    // vector<char> untunneled{};
-    // auto p = loaded.end();
-    // for (size_t i = 0; i < loaded.size(); i++) {
-    //     char c = (char)loaded.backwardstep(p);
-    //     untunneled.push_back(c);
-    // }
-    // return 0;
+    return 0;
 }
