@@ -643,9 +643,12 @@ tfm_index create_tfm(size_t size, sdsl::int_vector_buffer<> &L_buf, sdsl::bit_ve
     }
     for (uint64_t i = 0; i < tfm.m_L.sigma; i++) tfm.m_C[i + 1] += tfm.m_C[i];
     tfm.m_dout = tfm_index::bit_vector_type(std::move(dout));
+    sdsl::util::init_support(tfm.m_dout_rank, &tfm.m_dout);
     sdsl::util::init_support(tfm.m_dout_select, &tfm.m_dout);
     tfm.m_din = tfm_index::bit_vector_type(std::move(din));
     sdsl::util::init_support(tfm.m_din_rank, &tfm.m_din);
+    sdsl::util::init_support(tfm.m_din_select, &tfm.m_din);
+
     return tfm;
 }
 
@@ -703,8 +706,6 @@ tfm_index unparse(tfm_index &wg_parse, Dict &dict, size_t w, size_t size) {
 }
 
 void write_tfm(tfm_index &unparsed, string &output) {
-    cout << unparsed.size() << endl;
-
     string filename = output;
     filename += ".L";
     FILE *fbwt = fopen(filename.c_str(), "wb");
@@ -922,10 +923,11 @@ int main(int argc, char **argv) {
     tfm_index unparsed = unparse(tfm, dict, arg.w, size);
 
     write_tfm(unparsed, arg.input);
-    // store_to_file(unparsed, arg.output);
-    // tfm_index loaded;
-    // load_from_file(loaded, arg.output);
-    // string filename = arg.input + ".untunneled";
+    store_to_file(unparsed, arg.output);
+    tfm_index loaded;
+    load_from_file(loaded, arg.output);
+    string filename = arg.input + ".untunneled";
+    write_tfm(loaded, filename);
     // untunnel(loaded, filename);
 
     return 0;
