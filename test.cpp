@@ -33,5 +33,11 @@ int main() {
     bit_vector b4 = create_from_boolvec(b3);
     store_to_file(b, "tmp2");
 
+    int_vector<> L{1, 4, 5};
+    vector<bool> bdin{false, true, false, false, false, false, false, false, false, false};
+    bit_vector din = create_from_boolvec(bdin);
+    vector<bool> bdout{false, true, false, false, false, false, false, false, false, false};
+    bit_vector ddout = create_from_boolvec(bdout);
+
 
 }

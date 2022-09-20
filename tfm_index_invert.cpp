@@ -47,7 +47,7 @@ void symbol_frequencies(std::vector<uint64_t> &C, sdsl::int_vector<8> &L) {
     }
 }
 
-void construct_from_pfwg(tfm_index &tfm_index, const std::string basename) {
+tfm_index construct_from_pfwg(const string basename) {
     // find original string size
     sdsl::int_vector<8> original;
     load_vector_from_file(original, basename, 1);
@@ -65,18 +65,21 @@ void construct_from_pfwg(tfm_index &tfm_index, const std::string basename) {
     typedef ::tfm_index::wt_type wt_type;
     typedef ::tfm_index::bit_vector_type bv_type;
 
-    tfm_index.text_len = original.size();
+    tfm_index tfm;
+    tfm.text_len = original.size();
     sdsl::int_vector_buffer<> buf(basename + ".L", std::ios::in, size, 8, true);
-    tfm_index.m_L = wt_type(buf, size);
+    tfm.m_L = wt_type(buf, size);
 
-    symbol_frequencies(tfm_index.m_C, L);
-    tfm_index.m_dout = bv_type(std::move(dout));
-    sdsl::util::init_support(tfm_index.m_dout_rank, &tfm_index.m_dout);
-    sdsl::util::init_support(tfm_index.m_dout_select, &tfm_index.m_dout);
+    symbol_frequencies(tfm.m_C, L);
+    tfm.m_dout = bv_type(std::move(dout));
+    sdsl::util::init_support(tfm.m_dout_rank, &tfm.m_dout);
+    sdsl::util::init_support(tfm.m_dout_select, &tfm.m_dout);
 
-    tfm_index.m_din = bv_type(std::move(din));
-    sdsl::util::init_support(tfm_index.m_din_rank, &tfm_index.m_din);
-    sdsl::util::init_support(tfm_index.m_din_select, &tfm_index.m_din);
+    tfm.m_din = bv_type(std::move(din));
+    sdsl::util::init_support(tfm.m_din_rank, &tfm.m_din);
+    sdsl::util::init_support(tfm.m_din_select, &tfm.m_din);
+
+    return tfm;
 }
 
 void untunnel(tfm_index &tfm, string &filename) {
@@ -101,8 +104,7 @@ int main(int argc, char **argv) {
     }
 
     // load tunneled fm index
-    tfm_index tfm;
-    construct_from_pfwg(tfm, argv[1]);
+    tfm_index tfm = construct_from_pfwg(argv[1]);
 
     string filename = argv[1];
     filename += ".untunneled";

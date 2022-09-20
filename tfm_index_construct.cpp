@@ -666,6 +666,14 @@ void load_bitvector(sdsl::int_vector<1> &B, const std::string filename, const ui
     }
 }
 
+bit_vector create_from_boolvec(vector<bool> &v) {
+    bit_vector b(v.size(), 0);
+    for (size_t i=0; i < v.size(); i++) {
+        b[i] = v[i];
+    }
+    return b;
+}
+
 tfm_index unparse(tfm_index &wg_parse, Dict &dict, size_t w) {
     uint32_t *ilist = new uint32_t[wg_parse.L.size() - 1];
     generate_ilist(ilist, wg_parse, dict.dwords);
@@ -675,14 +683,16 @@ tfm_index unparse(tfm_index &wg_parse, Dict &dict, size_t w) {
     compute_dict_bwt_lcp(dict.d, dict.dsize, dict.dwords, w, &sa, &lcp);
 
     vector<char> l_array = store_bwt(w, dict.d, dict.dsize, dict.end, ilist, wg_parse, dict.dwords, sa, lcp);
+    vector<bool> bdin = store_din(w, dict.d, dict.dsize, wg_parse, dict.dwords, sa, lcp);
+    bit_vector din = create_from_boolvec(bdin);
+    vector<bool> bdout = store_dout(w, dict.d, dict.dsize, wg_parse, dict.dwords, sa, lcp);
+    bit_vector dout = create_from_boolvec(bdout);
 
     string filename = "data/yeast.raw.L";
     FILE *fbwt = fopen(filename.c_str(), "wb");
     for (char c: l_array) { if (fputc(c, fbwt) == EOF) die("L write error 0"); }
     fclose(fbwt);
     int_vector_buffer<> L_buf(filename, std::ios::in, 1024*1024, 8, true);
-
-    vector<bool> bdin = store_din(w, dict.d, dict.dsize, wg_parse, dict.dwords, sa, lcp);
 
     string din_file = "data/yeast.raw.din";
     FILE *fdin = fopen(din_file.c_str(), "wb");
@@ -693,12 +703,6 @@ tfm_index unparse(tfm_index &wg_parse, Dict &dict, size_t w) {
     write_bitvector(fdin, 1, cnt, buffer, true);
     fclose(fdin);
 
-    bit_vector din;
-    load_vector_from_file(din, din_file);
-    // load_bitvector(din, din_file + ".din", L_buf.size() + 1);
-
-    vector<bool> bdout = store_dout(w, dict.d, dict.dsize, wg_parse, dict.dwords, sa, lcp);
-
     string dout_file = "data/yeast.raw.dout";
     FILE *fdout = fopen(dout_file.c_str(), "wb");
     cnt = 0, buffer = 0;
@@ -707,10 +711,6 @@ tfm_index unparse(tfm_index &wg_parse, Dict &dict, size_t w) {
     }
     write_bitvector(fdout, 1, cnt, buffer, true);
     fclose(fdout);
-
-    bit_vector dout;
-    load_vector_from_file(dout, dout_file);
-    //load_bitvector(dout, dout_file + ".dout", L_buf.size() + 1);
 
     delete[] ilist;
     delete[] dict.d;
