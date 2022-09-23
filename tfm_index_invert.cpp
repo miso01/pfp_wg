@@ -3,6 +3,7 @@
 #include <iostream>
 #include <map>
 #include <sdsl/int_vector.hpp>
+#include <sdsl/io.hpp>
 #include <utility>
 #include <vector>
 
@@ -48,42 +49,71 @@ void symbol_frequencies(std::vector<uint64_t> &C, sdsl::int_vector<8> &L) {
     }
 }
 
+tfm_index create_tfm(size_t size, sdsl::int_vector_buffer<> &L_buf, sdsl::bit_vector &din, sdsl::bit_vector &dout) {
+    tfm_index tfm;
+    tfm.text_len = size;
+    tfm.m_L = tfm_index::wt_type(L_buf, L_buf.size());
+    tfm.m_C = vector<uint64_t>(tfm.m_L.sigma + 1, 0);
+    for (uint64_t i = 0; i < L_buf.size(); i++) {
+        // cout << L_buf[i] + 1 << endl;
+        tfm.m_C[L_buf[i] + 1] += 1;
+    }
+    for (uint64_t i = 0; i < tfm.m_L.sigma; i++) tfm.m_C[i + 1] += tfm.m_C[i];
+    tfm.m_dout = tfm_index::bit_vector_type(std::move(dout));
+    sdsl::util::init_support(tfm.m_dout_rank, &tfm.m_dout);
+    sdsl::util::init_support(tfm.m_dout_select, &tfm.m_dout);
+    tfm.m_din = tfm_index::bit_vector_type(std::move(din));
+    sdsl::util::init_support(tfm.m_din_rank, &tfm.m_din);
+    sdsl::util::init_support(tfm.m_din_select, &tfm.m_din);
+
+    return tfm;
+}
+
+tfm_index create_tfm(size_t size, int_vector<8> L, bit_vector din, bit_vector dout) {
+    tfm_index tfm;
+    tfm.text_len = size;
+
+    string tmp = "tmp2.L";
+    // store_to_file(L, tmp);
+    FILE *fbwt = fopen(tmp.c_str(), "wb");
+    for (char c: L) { fputc(c, fbwt); }
+    fclose(fbwt);
+    // int_vector_buffer<> buf(tmp, std::ios::in, L.size(), 8, true);
+    int_vector_buffer<> buf(tmp, std::ios::in, L.size(), 8, true);
+    tfm.m_L = tfm_index::wt_type(buf, L.size());
+    remove(tmp);
+    // construct_im(tfm.m_L, L, 1);
+
+    symbol_frequencies(tfm.m_C, L);
+    tfm.m_dout = tfm_index::bit_vector_type(std::move(dout));
+    sdsl::util::init_support(tfm.m_dout_rank, &tfm.m_dout);
+    sdsl::util::init_support(tfm.m_dout_select, &tfm.m_dout);
+
+    tfm.m_din = tfm_index::bit_vector_type(std::move(din));
+    sdsl::util::init_support(tfm.m_din_rank, &tfm.m_din);
+    sdsl::util::init_support(tfm.m_din_select, &tfm.m_din);
+
+    return tfm;
+};
+
 tfm_index construct_from_pfwg(const string basename) {
 
     size_t orig_size = 12156306;
 
-    sdsl::int_vector<8> L;
+    int_vector<8> L;
     load_vector_from_file(L, basename + ".L", 1);
-    uint64_t size = L.size();
+    // uint64_t size = ;
     // sdsl::int_vector<1> din, dout;
 
     bit_vector din;
-    din.resize(size + 1);
-    load_bitvector(din, basename + ".din", size + 1);
+    din.resize(L.size() + 1);
+    load_bitvector(din, basename + ".din", L.size() + 1);
 
     bit_vector dout;
-    dout.resize(size + 1);
-    load_bitvector(dout, basename + ".dout", size + 1);
+    dout.resize(L.size() + 1);
+    load_bitvector(dout, basename + ".dout", L.size() + 1);
 
-    typedef ::tfm_index::wt_type wt_type;
-    typedef ::tfm_index::bit_vector_type bv_type;
-
-    int_vector_buffer<> buf(basename + ".L", std::ios::in, size, 8, true);
-
-    tfm_index tfm;
-    tfm.text_len = orig_size;
-    tfm.m_L = wt_type(buf, size);
-    // construct_im(tfm.m_L, L, 1);
-
-    symbol_frequencies(tfm.m_C, L);
-    tfm.m_dout = bv_type(std::move(dout));
-    sdsl::util::init_support(tfm.m_dout_rank, &tfm.m_dout);
-    sdsl::util::init_support(tfm.m_dout_select, &tfm.m_dout);
-
-    tfm.m_din = bv_type(std::move(din));
-    sdsl::util::init_support(tfm.m_din_rank, &tfm.m_din);
-    sdsl::util::init_support(tfm.m_din_select, &tfm.m_din);
-
+    tfm_index tfm = create_tfm(orig_size, L, din, dout);
     return tfm;
 }
 
