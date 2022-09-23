@@ -872,15 +872,15 @@ tfm_index construct_tfm_index(vector<uint64_t> &bwt) {
     dbg_algorithms::mark_prefix_intervals(wt_L, C, dout, din);
 
     sdsl::remove(bwt_filename);
-    string tmp_file_name = "construct_tfm_index.tmp";
 
-    sdsl::int_vector_buffer<> L_buf(tmp_file_name, std::ios::out);
+    vector<uint64_t> L2{};
 
     tfm_index::size_type p = 0;
     tfm_index::size_type q = 0;
     for (tfm_index::size_type i = 0; i < wt_L.size(); i++) {
         if (din[i] == 1) {
-            L_buf.push_back(wt_L[i]);
+            L2.push_back(wt_L[i]);
+            // L2[p] = wt_L[i];
             dout[p++] = dout[i];
         }
         if (dout[i] == 1) {
@@ -891,6 +891,10 @@ tfm_index construct_tfm_index(vector<uint64_t> &bwt) {
     din[q++] = 1;
     dout.resize(p);
     din.resize(q);
+
+    string tmp_file_name = "construct_tfm_index.tmp";
+    int_vector_buffer<> L_buf(tmp_file_name, std::ios::out);
+    for (size_t i = 0; i < L2.size(); i++ ) L_buf.push_back(L2[i]);
 
     tfm_index tfm_index = create_tfm(bwt.size(), L_buf, din, dout);
 
