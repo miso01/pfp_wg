@@ -40,32 +40,7 @@ void load_bitvector(sdsl::int_vector<1> &B, const std::string filename, const ui
     }
 }
 
-tfm_index create_tfm(size_t size, int_vector<8> &L, bit_vector &din, bit_vector &dout) {
-    tfm_index tfm;
-    tfm.text_len = size;
 
-    string tmp = "tmp2.L";
-    FILE *fbwt = fopen(tmp.c_str(), "wb");
-    for (char c: L) { fputc(c, fbwt); }
-    fclose(fbwt);
-    int_vector_buffer<> buf(tmp, std::ios::in, L.size(), 8, true);
-    tfm.m_L = tfm_index::wt_type(buf, L.size());
-    remove(tmp);
-
-    tfm.m_C = vector<uint64_t>(255, 0);
-    for (uint64_t i = 0; i < L.size(); i++) tfm.m_C[L[i] + 1] += 1;
-    for (uint64_t i = 0; i < tfm.m_C.size() - 1; i++) tfm.m_C[i + 1] += tfm.m_C[i];
-
-    tfm.m_dout = tfm_index::bit_vector_type(std::move(dout));
-    sdsl::util::init_support(tfm.m_dout_rank, &tfm.m_dout);
-    sdsl::util::init_support(tfm.m_dout_select, &tfm.m_dout);
-
-    tfm.m_din = tfm_index::bit_vector_type(std::move(din));
-    sdsl::util::init_support(tfm.m_din_rank, &tfm.m_din);
-    sdsl::util::init_support(tfm.m_din_select, &tfm.m_din);
-
-    return tfm;
-};
 
 tfm_index construct_from_pfwg(const string basename) {
 
