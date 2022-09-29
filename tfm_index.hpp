@@ -163,12 +163,17 @@ tfm_index create_tfm(size_t size, int_vector<8> &L, bit_vector &din, bit_vector 
     tfm_index tfm;
     tfm.text_len = size;
 
+    // wt_blcd_int<> wt;
+    // construct_im(wt, L);
+    // tfm.m_L = wt;
+
     string tmp = "tmp2.L";
     FILE *fbwt = fopen(tmp.c_str(), "wb");
     for (char c: L) { fputc(c, fbwt); }
     fclose(fbwt);
-    int_vector_buffer<> buf(tmp, std::ios::in, L.size(), 8, true);
-    tfm.m_L = tfm_index::wt_type(buf, L.size());
+    int_vector_buffer<> buf(tmp, std::ios::in, L.size(), L.width(), true);
+    wt_blcd_int<> wt2(buf, L.size());
+    tfm.m_L = wt2;
     remove(tmp);
 
     tfm.m_C = vector<uint64_t>(255, 0);
