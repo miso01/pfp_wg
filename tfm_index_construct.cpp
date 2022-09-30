@@ -387,8 +387,6 @@ vector<char> store_bwt(size_t w, uint8_t *d, long dsize, uint64_t *end_to_phrase
                         uint8_t char_to_write = get_prev(w, d, end_to_phrase, act_phrase);
                         easy_bwts++;
                         out.push_back(char_to_write);
-                        // if (fputc(char_to_write, fbwt) == EOF)
-                            // die("L write error 0");
                         if (tfmp.dout[++pos] == 1)
                             break;
                     }
@@ -674,14 +672,10 @@ tfm_index unparse(tfm_index &wg_parse, Dict &dict, size_t w, size_t size) {
     vector<bool> bdout = store_dout(w, dict.d, dict.dsize, wg_parse, dict.dwords, sa, lcp);
     bit_vector dout = create_from_boolvec(bdout);
 
-    string filename = "tmp.L";
-    FILE *fbwt = fopen(filename.c_str(), "wb");
-    for (char c: l_array) { if (fputc(c, fbwt) == EOF) die("L write error 0"); }
-    fclose(fbwt);
-    int_vector_buffer<> L_buf(filename, std::ios::in, 1024*1024, 8, true);
+    int_vector<8> L(l_array.size(), 0);
+    for (size_t i=0; i<L.size(); i++) { L[i] = l_array[i]; }
 
-    tfm_index tfm = create_tfm(size, L_buf, din, dout);
-    remove(filename);
+    tfm_index tfm = create_tfm(size, L, din, dout);
     return tfm;
 }
 
@@ -872,13 +866,11 @@ tfm_index construct_tfm_index(vector<uint64_t> &bwt) {
     dout.resize(p);
     din.resize(q);
 
-    string tmp_file_name = "construct_tfm_index.tmp";
-    int_vector_buffer<> L_buf(tmp_file_name, std::ios::out);
-    for (size_t i = 0; i < L2.size(); i++ ) L_buf.push_back(L2[i]);
+    int_vector<64> L3(L2.size(), 0);
+    for (size_t i=0; i<L3.size(); i++) { L3[i] = L2[i]; }
 
-    tfm_index tfm_index = create_tfm(bwt.size(), L_buf, din, dout);
+    tfm_index tfm_index = create_tfm(bwt.size(), L3, din, dout);
 
-    sdsl::remove(tmp_file_name);
     return tfm_index;
 }
 

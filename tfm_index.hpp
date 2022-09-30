@@ -40,8 +40,8 @@ class tfm_index {
     typedef std::pair<size_type, size_type> nav_type;
 
   private:
-    friend tfm_index create_tfm(size_t size, sdsl::int_vector_buffer<> &L_buf, sdsl::bit_vector &din, sdsl::bit_vector &dout);
-    friend tfm_index create_tfm(size_t size, sdsl::int_vector<8> &L, sdsl::bit_vector &din, sdsl::bit_vector &dout);
+    friend tfm_index create_tfm(size_t size, sdsl::int_vector<64> &L, sdsl::bit_vector &din, sdsl::bit_vector &dout);
+    friend tfm_index create_tfm(size_t size, sdsl::int_vector<8>  &L, sdsl::bit_vector &din, sdsl::bit_vector &dout);
 
     size_type text_len; // original textlen
     sdsl::wt_blcd_int<> m_L;
@@ -139,13 +139,17 @@ class tfm_index {
     };
 };
 
-tfm_index create_tfm(size_t size, int_vector_buffer<> &L_buf, bit_vector &din, bit_vector &dout) {
+tfm_index create_tfm(size_t size, int_vector<64> &L, bit_vector &din, bit_vector &dout) {
+
+    string tmp_file_name = "construct_tfm_index.tmp";
+    int_vector_buffer<> L_buf(tmp_file_name, std::ios::out);
+    for (size_t i = 0; i < L.size(); i++ ) L_buf.push_back(L[i]);
+
     tfm_index tfm;
     tfm.text_len = size;
     tfm.m_L = tfm_index::wt_type(L_buf, L_buf.size());
     tfm.m_C = vector<uint64_t>(tfm.m_L.sigma + 1, 0);
     for (uint64_t i = 0; i < L_buf.size(); i++) {
-        // cout << L_buf[i] + 1 << endl;
         tfm.m_C[L_buf[i] + 1] += 1;
     }
     for (uint64_t i = 0; i < tfm.m_L.sigma; i++) tfm.m_C[i + 1] += tfm.m_C[i];
@@ -156,6 +160,7 @@ tfm_index create_tfm(size_t size, int_vector_buffer<> &L_buf, bit_vector &din, b
     sdsl::util::init_support(tfm.m_din_rank, &tfm.m_din);
     sdsl::util::init_support(tfm.m_din_select, &tfm.m_din);
 
+    sdsl::remove(tmp_file_name);
     return tfm;
 }
 
