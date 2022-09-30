@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <ctime>
 #include <deque>
@@ -226,9 +227,9 @@ void writeDictOcc(map<uint64_t, word_stats> &wfreq, vector<const string *> &sort
     dict.push_back(EndOfDict);
 }
 
-void calculate_word_frequencies(string &filename, size_t w, size_t p, map<uint64_t, word_stats> &wordFreq, vector<uint64_t> &parse, vector<char> &last) {
+void calculate_word_frequencies(string &filename, size_t w, size_t p, map<uint64_t, word_stats> &wordFreq, vector<uint64_t> &parse, vector<char> &last, size_t *size) {
     try {
-        process_file(filename, w, p, wordFreq, parse, last);
+        *size = process_file(filename, w, p, wordFreq, parse, last);
     } catch (const std::bad_alloc &) {
         cout << "Out of memory (parsing phase)... emergency exit\n";
         die("bad alloc exception");
@@ -724,10 +725,10 @@ vector<uint64_t> remapParse(map<uint64_t, word_stats> &wfreq, vector<uint64_t> &
     return new_parse;
 }
 
-void pf_parse(string &input, size_t w, size_t p, vector<uint64_t> &parse, Dict &dict) {
+void pf_parse(string &input, size_t w, size_t p, vector<uint64_t> &parse, Dict &dict, size_t *size) {
     map<uint64_t, word_stats> wordFreq;
     vector<char> last{}; // this is maybe not needed
-    calculate_word_frequencies(input, w, p, wordFreq, parse, last);
+    calculate_word_frequencies(input, w, p, wordFreq, parse, last, size);
 
     // create array of dictionary words
     vector<const string *> dictArray;
@@ -832,8 +833,8 @@ int main(int argc, char **argv) {
 
     vector<uint64_t> parse{};
     Dict dict;
-    size_t size = 12156306; // yeast.raw
-    pf_parse(arg.input, arg.w, arg.p, parse, dict);
+    size_t size;
+    pf_parse(arg.input, arg.w, arg.p, parse, dict, &size);
     vector<uint64_t> bwt = compute_bwt(parse);
     tfm_index tfm = construct_tfm_index(bwt);
     tfm_index unparsed = unparse(tfm, dict, arg.w, size);
