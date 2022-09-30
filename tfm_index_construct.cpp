@@ -617,7 +617,7 @@ tfm_index unparse(tfm_index &wg_parse, Dict &dict, size_t w, size_t size) {
     bit_vector din = compute_din(w, dict.d, dict.dsize, wg_parse, dict.dwords, sa_d, lcp_d);
     bit_vector dout = compute_dout(w, dict.d, dict.dsize, wg_parse, dict.dwords, sa_d, lcp_d);
 
-    tfm_index tfm = create_tfm(size, L, din, dout);
+    tfm_index tfm(size, L, din, dout);
     return tfm;
 }
 //------------------------------------------------------------------------------
@@ -808,7 +808,7 @@ tfm_index construct_tfm_index(vector<uint64_t> &bwt) {
     int_vector<64> L3(L2.size(), 0);
     for (size_t i=0; i<L3.size(); i++) { L3[i] = L2[i]; }
 
-    tfm_index tfm_index = create_tfm(bwt.size(), L3, din, dout);
+    tfm_index tfm_index(bwt.size(), L3, din, dout);
 
     return tfm_index;
 }

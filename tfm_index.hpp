@@ -40,9 +40,6 @@ class tfm_index {
     typedef std::pair<size_type, size_type> nav_type;
 
   private:
-    friend tfm_index create_tfm(size_t size, sdsl::int_vector<64> &L, sdsl::bit_vector &din, sdsl::bit_vector &dout);
-    friend tfm_index create_tfm(size_t size, sdsl::int_vector<8>  &L, sdsl::bit_vector &din, sdsl::bit_vector &dout);
-
     size_type text_len; // original textlen
     sdsl::wt_blcd_int<> m_L;
     std::vector<size_type> m_C;
@@ -63,8 +60,59 @@ class tfm_index {
     const rank_type &din_rank = m_din_rank;
     const select_type &din_select = m_din_select;
 
+    tfm_index() {};
+
+    tfm_index(size_t size, int_vector<64> &L, bit_vector &din, bit_vector &dout) {
+        string tmp_file_name = "construct_tfm_index.tmp";
+        int_vector_buffer<> L_buf(tmp_file_name, std::ios::out);
+        for (size_t i = 0; i < L.size(); i++ ) L_buf.push_back(L[i]);
+
+        text_len = size;
+        m_L = tfm_index::wt_type(L_buf, L_buf.size());
+        m_C = vector<uint64_t>(m_L.sigma + 1, 0);
+        for (uint64_t i = 0; i < L_buf.size(); i++) { m_C[L_buf[i] + 1] += 1; }
+        for (uint64_t i = 0; i < m_L.sigma; i++) m_C[i + 1] += m_C[i];
+        m_dout = tfm_index::bit_vector_type(std::move(dout));
+        sdsl::util::init_support(m_dout_rank, &m_dout);
+        sdsl::util::init_support(m_dout_select, &m_dout);
+        m_din = tfm_index::bit_vector_type(std::move(din));
+        sdsl::util::init_support(m_din_rank, &m_din);
+        sdsl::util::init_support(m_din_select, &m_din);
+
+        sdsl::remove(tmp_file_name);
+    }
+
+    tfm_index(size_t size, int_vector<8> &L, bit_vector &din, bit_vector &dout) {
+        text_len = size;
+
+        // wt_blcd_int<> wt;
+        // construct_im(wt, L);
+        // tfm.m_L = wt;
+
+        string tmp = "tmp2.L";
+        FILE *fbwt = fopen(tmp.c_str(), "wb");
+        for (char c: L) { fputc(c, fbwt); }
+        fclose(fbwt);
+        int_vector_buffer<> buf(tmp, std::ios::in, L.size(), L.width(), true);
+        wt_blcd_int<> wt2(buf, L.size());
+        m_L = wt2;
+        remove(tmp);
+
+        m_C = vector<uint64_t>(255, 0);
+        for (uint64_t i = 0; i < L.size(); i++) m_C[L[i] + 1] += 1;
+        for (uint64_t i = 0; i < m_C.size() - 1; i++) m_C[i + 1] += m_C[i];
+
+        m_dout = tfm_index::bit_vector_type(std::move(dout));
+        sdsl::util::init_support(m_dout_rank, &m_dout);
+        sdsl::util::init_support(m_dout_select, &m_dout);
+
+        m_din = tfm_index::bit_vector_type(std::move(din));
+        sdsl::util::init_support(m_din_rank, &m_din);
+        sdsl::util::init_support(m_din_select, &m_din);
+    }
+
     //! returns the size of the original string
-    size_type size() const { return text_len; };
+    size_type size() const { return text_len; }
 
     //! returns the end, i.e. the position in L where the string ends
     nav_type end() const { return std::make_pair((size_type)0, (size_type)0); }
@@ -137,63 +185,6 @@ class tfm_index {
         m_din_rank.load(in, &m_din);
         m_din_select.load(in, &m_din);
     };
-};
-
-tfm_index create_tfm(size_t size, int_vector<64> &L, bit_vector &din, bit_vector &dout) {
-
-    string tmp_file_name = "construct_tfm_index.tmp";
-    int_vector_buffer<> L_buf(tmp_file_name, std::ios::out);
-    for (size_t i = 0; i < L.size(); i++ ) L_buf.push_back(L[i]);
-
-    tfm_index tfm;
-    tfm.text_len = size;
-    tfm.m_L = tfm_index::wt_type(L_buf, L_buf.size());
-    tfm.m_C = vector<uint64_t>(tfm.m_L.sigma + 1, 0);
-    for (uint64_t i = 0; i < L_buf.size(); i++) {
-        tfm.m_C[L_buf[i] + 1] += 1;
-    }
-    for (uint64_t i = 0; i < tfm.m_L.sigma; i++) tfm.m_C[i + 1] += tfm.m_C[i];
-    tfm.m_dout = tfm_index::bit_vector_type(std::move(dout));
-    sdsl::util::init_support(tfm.m_dout_rank, &tfm.m_dout);
-    sdsl::util::init_support(tfm.m_dout_select, &tfm.m_dout);
-    tfm.m_din = tfm_index::bit_vector_type(std::move(din));
-    sdsl::util::init_support(tfm.m_din_rank, &tfm.m_din);
-    sdsl::util::init_support(tfm.m_din_select, &tfm.m_din);
-
-    sdsl::remove(tmp_file_name);
-    return tfm;
-}
-
-tfm_index create_tfm(size_t size, int_vector<8> &L, bit_vector &din, bit_vector &dout) {
-    tfm_index tfm;
-    tfm.text_len = size;
-
-    // wt_blcd_int<> wt;
-    // construct_im(wt, L);
-    // tfm.m_L = wt;
-
-    string tmp = "tmp2.L";
-    FILE *fbwt = fopen(tmp.c_str(), "wb");
-    for (char c: L) { fputc(c, fbwt); }
-    fclose(fbwt);
-    int_vector_buffer<> buf(tmp, std::ios::in, L.size(), L.width(), true);
-    wt_blcd_int<> wt2(buf, L.size());
-    tfm.m_L = wt2;
-    remove(tmp);
-
-    tfm.m_C = vector<uint64_t>(255, 0);
-    for (uint64_t i = 0; i < L.size(); i++) tfm.m_C[L[i] + 1] += 1;
-    for (uint64_t i = 0; i < tfm.m_C.size() - 1; i++) tfm.m_C[i + 1] += tfm.m_C[i];
-
-    tfm.m_dout = tfm_index::bit_vector_type(std::move(dout));
-    sdsl::util::init_support(tfm.m_dout_rank, &tfm.m_dout);
-    sdsl::util::init_support(tfm.m_dout_select, &tfm.m_dout);
-
-    tfm.m_din = tfm_index::bit_vector_type(std::move(din));
-    sdsl::util::init_support(tfm.m_din_rank, &tfm.m_din);
-    sdsl::util::init_support(tfm.m_din_select, &tfm.m_din);
-
-    return tfm;
 };
 
 #endif
