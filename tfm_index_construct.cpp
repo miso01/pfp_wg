@@ -338,17 +338,7 @@ inline uint8_t get_prev(int w, uint8_t *d, uint64_t *end, uint32_t seqid) {
     return d[end[seqid] - w - 1];
 }
 
-void write_bitvector(FILE *f, bool bit, uint8_t &cnt, uint8_t &buffer, bool hard_write = false) {
-    buffer |= (bit << (7 - cnt++));
-    if (hard_write || (cnt == 8)) {
-        if (fputc(buffer, f) == EOF)
-            die("Din/Dout write error 0");
-        cnt = 0;
-        buffer = 0;
-    }
-}
-
-vector<char> store_bwt(size_t w, uint8_t *d, long dsize, uint64_t *end_to_phrase, uint32_t *ilist, tfm_index &tfmp, long dwords, uint_t *sa, int_t *lcp) {
+int_vector<8> compute_L(size_t w, uint8_t *d, long dsize, uint64_t *end_to_phrase, uint32_t *ilist, tfm_index &tfmp, long dwords, uint_t *sa, int_t *lcp) {
     // starting point in ilist for each word and # words
     // set d[0]==0 as this is the EOF char in the final BWT
     assert(d[0] == Dollar);
@@ -463,10 +453,21 @@ vector<char> store_bwt(size_t w, uint8_t *d, long dsize, uint64_t *end_to_phrase
     }
     assert(full_words == dwords);
 
-    return out;
+    int_vector<8> L(out.size(), 0);
+    for (size_t i=0; i<L.size(); i++) { L[i] = out[i]; }
+
+    return L;
 }
 
-vector<bool> store_din(size_t w, uint8_t *d, long dsize, tfm_index &tfmp, long dwords, uint_t *sa, int_t *lcp) {
+bit_vector create_from_boolvec(vector<bool> &v) {
+    bit_vector b(v.size(), 0);
+    for (size_t i=0; i < v.size(); i++) {
+        b[i] = v[i];
+    }
+    return b;
+}
+
+bit_vector compute_din(size_t w, uint8_t *d, long dsize, tfm_index &tfmp, long dwords, uint_t *sa, int_t *lcp) {
     // starting point in ilist for each word and # words
 
     // derive eos from sa. for i=0...dwords-1, eos[i] is the eos position of
@@ -485,7 +486,6 @@ vector<bool> store_din(size_t w, uint8_t *d, long dsize, tfm_index &tfmp, long d
         next = i + 1; // prepare for next iteration
         // compute length of this suffix and sequence it belongs
         int_t suffixLen = getlen(sa[i], eos, dwords, &seqid);
-        // cout << suffixLen << " " << seqid << endl;
         //  ignore suffixes of lenght <= w
         if (suffixLen <= (int_t)w)
             continue;
@@ -495,8 +495,6 @@ vector<bool> store_din(size_t w, uint8_t *d, long dsize, tfm_index &tfmp, long d
             assert(tfmp.din[start] == 1);
             for (uint32_t j = start; j < end; j++) {
                 din.push_back(tfmp.din[j]);
-                // write_bitvector(fdin, tfmp.din[j], cnt, buffer);
-                // din.resize(din.capacity()*2);
             }
             continue; // proceed with next i
         } else {
@@ -523,10 +521,10 @@ vector<bool> store_din(size_t w, uint8_t *d, long dsize, tfm_index &tfmp, long d
         }
     }
     din.push_back(1);
-    return din;
+    return create_from_boolvec(din);
 }
 
-vector<bool> store_dout(size_t w, uint8_t *d, long dsize, tfm_index &tfmp, long dwords, uint_t *sa, int_t *lcp) {
+bit_vector compute_dout(size_t w, uint8_t *d, long dsize, tfm_index &tfmp, long dwords, uint_t *sa, int_t *lcp) {
     // derive eos from sa. for i=0...dwords-1, eos[i] is the eos position of
     // string i in d
     uint_t *eos = sa + 1;
@@ -589,31 +587,7 @@ vector<bool> store_dout(size_t w, uint8_t *d, long dsize, tfm_index &tfmp, long 
         }
     }
     dout.push_back(1);
-    return dout;
-}
-
-Dict read_dictionary(vector<char> &dict) {
-    size_t dsize = dict.size();
-    uint8_t *d = new uint8_t[dsize];
-    for (size_t i = 0; i < dsize; i++) {
-        d[i] = dict[i];
-    }
-
-    uint64_t dwords = 0;
-    for (size_t i = 0; i < dsize; i++) {
-        if (d[i] == EndOfWord)
-            dwords++;
-    }
-
-    uint64_t *end = new uint64_t[dwords];
-    int cnt = 0;
-    for (size_t i = 0; i < dsize; i++) {
-        if (d[i] == EndOfWord)
-            end[cnt++] = i;
-    }
-
-    Dict res = {d, end, (uint64_t)dsize, dwords};
-    return res;
+    return create_from_boolvec(dout);
 }
 
 void generate_ilist(uint32_t *ilist, tfm_index &tfmp, uint64_t dwords) {
@@ -631,30 +605,17 @@ void generate_ilist(uint32_t *ilist, tfm_index &tfmp, uint64_t dwords) {
     }
 }
 
-bit_vector create_from_boolvec(vector<bool> &v) {
-    bit_vector b(v.size(), 0);
-    for (size_t i=0; i < v.size(); i++) {
-        b[i] = v[i];
-    }
-    return b;
-}
-
 tfm_index unparse(tfm_index &wg_parse, Dict &dict, size_t w, size_t size) {
-    uint32_t *ilist = new uint32_t[wg_parse.L.size() - 1];
-    generate_ilist(ilist, wg_parse, dict.dwords);
+    uint32_t *inverted_list = new uint32_t[wg_parse.L.size() - 1];
+    generate_ilist(inverted_list, wg_parse, dict.dwords);
 
-    uint_t *sa;
-    int_t *lcp;
-    compute_dict_bwt_lcp(dict.d, dict.dsize, dict.dwords, w, &sa, &lcp);
+    uint_t *sa_d;
+    int_t *lcp_d;
+    compute_dict_bwt_lcp(dict.d, dict.dsize, dict.dwords, w, &sa_d, &lcp_d);
 
-    vector<char> l_array = store_bwt(w, dict.d, dict.dsize, dict.end, ilist, wg_parse, dict.dwords, sa, lcp);
-    vector<bool> bdin = store_din(w, dict.d, dict.dsize, wg_parse, dict.dwords, sa, lcp);
-    bit_vector din = create_from_boolvec(bdin);
-    vector<bool> bdout = store_dout(w, dict.d, dict.dsize, wg_parse, dict.dwords, sa, lcp);
-    bit_vector dout = create_from_boolvec(bdout);
-
-    int_vector<8> L(l_array.size(), 0);
-    for (size_t i=0; i<L.size(); i++) { L[i] = l_array[i]; }
+    int_vector<8> L = compute_L(w, dict.d, dict.dsize, dict.end, inverted_list, wg_parse, dict.dwords, sa_d, lcp_d);
+    bit_vector din = compute_din(w, dict.d, dict.dsize, wg_parse, dict.dwords, sa_d, lcp_d);
+    bit_vector dout = compute_dout(w, dict.d, dict.dsize, wg_parse, dict.dwords, sa_d, lcp_d);
 
     tfm_index tfm = create_tfm(size, L, din, dout);
     return tfm;
@@ -723,6 +684,30 @@ vector<uint64_t> remapParse(map<uint64_t, word_stats> &wfreq, vector<uint64_t> &
     }
     new_parse.push_back(0);
     return new_parse;
+}
+
+Dict read_dictionary(vector<char> &dict) {
+    size_t dsize = dict.size();
+    uint8_t *d = new uint8_t[dsize];
+    for (size_t i = 0; i < dsize; i++) {
+        d[i] = dict[i];
+    }
+
+    uint64_t dwords = 0;
+    for (size_t i = 0; i < dsize; i++) {
+        if (d[i] == EndOfWord)
+            dwords++;
+    }
+
+    uint64_t *end = new uint64_t[dwords];
+    int cnt = 0;
+    for (size_t i = 0; i < dsize; i++) {
+        if (d[i] == EndOfWord)
+            end[cnt++] = i;
+    }
+
+    Dict res = {d, end, (uint64_t)dsize, dwords};
+    return res;
 }
 
 void pf_parse(string &input, size_t w, size_t p, vector<uint64_t> &parse, Dict &dict, size_t *size) {

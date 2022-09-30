@@ -36,7 +36,7 @@ void untunnel(tfm_index &tfm, string &filename) {
 int main(int argc, char **argv) {
     if (argc < 3) {
         printUsage(argv);
-        cerr << "At least 1 parameter expected" << endl;
+        cerr << "At least 2 parameter expected" << endl;
         return 1;
     }
 
