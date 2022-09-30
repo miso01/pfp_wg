@@ -17,7 +17,7 @@ test: build
 	cmp data/yeast.raw.untunneled data/yeast.raw && echo "Output is correct."
 
 small_test: build
-	./tfm_index_construct.x -w 4 -p 50 -i data/yeast.small -o data/yeast.wg
+	./tfm_index_construct.x -w 2 -p 11 -i data/yeast.small -o data/yeast.wg
 	./tfm_index_invert.x data/yeast.wg data/yeast.small.untunneled
 	cmp data/yeast.small.untunneled data/yeast.small && echo "Output is correct."
 
