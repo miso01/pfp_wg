@@ -630,26 +630,6 @@ void generate_ilist(uint32_t *ilist, tfm_index &tfmp, uint64_t dwords) {
     }
 }
 
-void load_bitvector(sdsl::int_vector<1> &B, const std::string filename, const uint64_t n) {
-    FILE *fin = fopen(filename.c_str(), "rb");
-    uint64_t cnt = 0;
-    uint8_t buffer = 0;
-    for (uint64_t i = 0; i < (n + 7) / 8; i++) {
-        int e = fread(&buffer, sizeof(uint8_t), 1, fin);
-        if (e < 0)
-            std::cout << "ERROR during bitvector loading!" << std::endl;
-        // std::cout << (int) buffer << std::endl;
-        for (int j = 0; j < 8; j++) {
-            bool bit = 1 & (buffer >> (7 - j));
-            B[cnt++] = bit;
-            if (cnt == n) {
-                fclose(fin);
-                return;
-            }
-        }
-    }
-}
-
 bit_vector create_from_boolvec(vector<bool> &v) {
     bit_vector b(v.size(), 0);
     for (size_t i=0; i < v.size(); i++) {
@@ -678,33 +658,6 @@ tfm_index unparse(tfm_index &wg_parse, Dict &dict, size_t w, size_t size) {
     tfm_index tfm = create_tfm(size, L, din, dout);
     return tfm;
 }
-
-void write_tfm(tfm_index &unparsed, string &output) {
-    string filename = output;
-    filename += ".L";
-    FILE *fbwt = fopen(filename.c_str(), "wb");
-    for (char c: unparsed.L) { if (fputc(c, fbwt) == EOF) die("L write error 0"); }
-    fclose(fbwt);
-
-    string din_file = output + ".din";
-    FILE *fdin = fopen(din_file.c_str(), "wb");
-    uint8_t cnt = 0, buffer = 0;
-    for (size_t i = 0; i < unparsed.din.size() - 1; i++) {
-        write_bitvector(fdin, unparsed.din[i], cnt, buffer);
-    }
-    write_bitvector(fdin, 1, cnt, buffer, true);
-    fclose(fdin);
-
-    string dout_file = output + ".dout";
-    FILE *fdout = fopen(dout_file.c_str(), "wb");
-    cnt = 0, buffer = 0;
-    for (size_t i = 0; i < unparsed.dout.size() - 1; i++) {
-        write_bitvector(fdout, unparsed.dout[i], cnt, buffer);
-    }
-    write_bitvector(fdout, 1, cnt, buffer, true);
-    fclose(fdout);
-}
-
 //------------------------------------------------------------------------------
 
 struct Args {
@@ -874,19 +827,6 @@ tfm_index construct_tfm_index(vector<uint64_t> &bwt) {
     return tfm_index;
 }
 
-void untunnel(tfm_index &tfm, string &filename) {
-    char *original = new char[tfm.size()];
-    auto p = tfm.end();
-    for (sdsl::int_vector<>::size_type i = 0; i < tfm.size(); i++) {
-        char c = (char)tfm.backwardstep(p);
-        original[tfm.size() - i - 1] = c;
-    }
-
-    FILE *fout = fopen(filename.c_str(), "w");
-    fwrite(original, sizeof(char), tfm.size(), fout);
-    fclose(fout);
-}
-
 int main(int argc, char **argv) {
     Args arg = parse_args(argc, argv);
 
@@ -898,13 +838,7 @@ int main(int argc, char **argv) {
     tfm_index tfm = construct_tfm_index(bwt);
     tfm_index unparsed = unparse(tfm, dict, arg.w, size);
 
-    write_tfm(unparsed, arg.input);
     store_to_file(unparsed, arg.output);
-    tfm_index loaded;
-    load_from_file(loaded, arg.output);
-    string filename = arg.input + ".untunneled";
-    write_tfm(loaded, filename);
-    // untunnel(loaded, filename);
 
     return 0;
 }
