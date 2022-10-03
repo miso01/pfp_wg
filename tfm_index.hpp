@@ -60,6 +60,8 @@ class tfm_index {
     const rank_type &din_rank = m_din_rank;
     const select_type &din_select = m_din_select;
 
+    friend tfm_index construct(size_t size, int_vector<> &L, bit_vector &din, bit_vector &dout);
+
     tfm_index() {};
 
     tfm_index(size_t size, int_vector<64> &L, bit_vector &din, bit_vector &dout) {
