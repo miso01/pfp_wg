@@ -338,7 +338,7 @@ inline uint8_t get_prev(int w, uint8_t *d, uint64_t *end, uint32_t seqid) {
     return d[end[seqid] - w - 1];
 }
 
-int_vector<8> compute_L(size_t w, uint8_t *d, long dsize, uint64_t *end_to_phrase, uint32_t *ilist, tfm_index &tfmp, long dwords, uint_t *sa, int_t *lcp) {
+int_vector<> compute_L(size_t w, uint8_t *d, long dsize, uint64_t *end_to_phrase, uint32_t *ilist, tfm_index &tfmp, long dwords, uint_t *sa, int_t *lcp) {
     // starting point in ilist for each word and # words
     // set d[0]==0 as this is the EOF char in the final BWT
     assert(d[0] == Dollar);
@@ -453,7 +453,7 @@ int_vector<8> compute_L(size_t w, uint8_t *d, long dsize, uint64_t *end_to_phras
     }
     assert(full_words == dwords);
 
-    int_vector<8> L(out.size(), 0);
+    int_vector<> L(out.size(), 0);
     for (size_t i=0; i<L.size(); i++) { L[i] = out[i]; }
 
     return L;
@@ -613,7 +613,7 @@ tfm_index unparse(tfm_index &wg_parse, Dict &dict, size_t w, size_t size) {
     int_t *lcp_d;
     compute_dict_bwt_lcp(dict.d, dict.dsize, dict.dwords, w, &sa_d, &lcp_d);
 
-    int_vector<8> L = compute_L(w, dict.d, dict.dsize, dict.end, inverted_list, wg_parse, dict.dwords, sa_d, lcp_d);
+    int_vector<> L = compute_L(w, dict.d, dict.dsize, dict.end, inverted_list, wg_parse, dict.dwords, sa_d, lcp_d);
     bit_vector din = compute_din(w, dict.d, dict.dsize, wg_parse, dict.dwords, sa_d, lcp_d);
     bit_vector dout = compute_dout(w, dict.d, dict.dsize, wg_parse, dict.dwords, sa_d, lcp_d);
 
@@ -805,7 +805,7 @@ tfm_index construct_tfm_index(vector<uint64_t> &bwt) {
     dout.resize(p);
     din.resize(q);
 
-    int_vector<64> L3(L2.size(), 0);
+    int_vector<> L3(L2.size(), 0);
     for (size_t i=0; i<L3.size(); i++) { L3[i] = L2[i]; }
 
     tfm_index tfm_index(bwt.size(), L3, din, dout);

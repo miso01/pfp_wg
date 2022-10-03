@@ -83,55 +83,6 @@ class tfm_index {
         sdsl::util::init_support(m_din_select,  &m_din);
     }
 
-    tfm_index(size_t size, int_vector<64> &L, bit_vector &din, bit_vector &dout) {
-        string tmp_file_name = "construct_tfm_index.tmp";
-        int_vector_buffer<> L_buf(tmp_file_name, std::ios::out);
-        for (size_t i = 0; i < L.size(); i++ ) L_buf.push_back(L[i]);
-
-        text_len = size;
-        m_L = tfm_index::wt_type(L_buf, L_buf.size());
-        m_C = vector<uint64_t>(m_L.sigma + 1, 0);
-        for (uint64_t i = 0; i < L_buf.size(); i++) { m_C[L_buf[i] + 1] += 1; }
-        for (uint64_t i = 0; i < m_L.sigma; i++) m_C[i + 1] += m_C[i];
-        m_dout = tfm_index::bit_vector_type(std::move(dout));
-        sdsl::util::init_support(m_dout_rank, &m_dout);
-        sdsl::util::init_support(m_dout_select, &m_dout);
-        m_din = tfm_index::bit_vector_type(std::move(din));
-        sdsl::util::init_support(m_din_rank, &m_din);
-        sdsl::util::init_support(m_din_select, &m_din);
-
-        sdsl::remove(tmp_file_name);
-    }
-
-    tfm_index(size_t size, int_vector<8> &L, bit_vector &din, bit_vector &dout) {
-        text_len = size;
-
-        // wt_blcd_int<> wt;
-        // construct_im(wt, L);
-        // tfm.m_L = wt;
-
-        string tmp = "tmp2.L";
-        FILE *fbwt = fopen(tmp.c_str(), "wb");
-        for (char c: L) { fputc(c, fbwt); }
-        fclose(fbwt);
-        int_vector_buffer<> buf(tmp, std::ios::in, L.size(), L.width(), true);
-        wt_blcd_int<> wt2(buf, L.size());
-        m_L = wt2;
-        remove(tmp);
-
-        m_C = vector<uint64_t>(255, 0);
-        for (uint64_t i = 0; i < L.size(); i++) m_C[L[i] + 1] += 1;
-        for (uint64_t i = 0; i < m_C.size() - 1; i++) m_C[i + 1] += m_C[i];
-
-        m_dout = tfm_index::bit_vector_type(std::move(dout));
-        sdsl::util::init_support(m_dout_rank, &m_dout);
-        sdsl::util::init_support(m_dout_select, &m_dout);
-
-        m_din = tfm_index::bit_vector_type(std::move(din));
-        sdsl::util::init_support(m_din_rank, &m_din);
-        sdsl::util::init_support(m_din_select, &m_din);
-    }
-
     //! returns the size of the original string
     size_type size() const { return text_len; }
 
