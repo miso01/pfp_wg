@@ -131,7 +131,7 @@ uint64_t kr_hash(string s) {
     return hash;
 }
 
-static void save_update_word(string &w, unsigned int minsize, map<uint64_t, word_stats> &freq, vector<uint64_t> &parse, vector<char> &last, uint64_t &pos) {
+static void save_update_word(string &w, unsigned int minsize, map<uint64_t, word_stats> &freq, vector<uint64_t> &parse, uint64_t &pos) {
     assert(pos == 0 || w.size() > minsize);
     if (w.size() <= minsize)
         return;
@@ -157,9 +157,7 @@ static void save_update_word(string &w, unsigned int minsize, map<uint64_t, word
             exit(1);
         }
     }
-    // output char w+1 from the end
-    last.push_back(w[w.size() - minsize - 1]);
-    // compute ending position +1 of current word and write it to sa file
+
     // pos is the ending position+1 of the previous word and is updated here
     if (pos == 0)
         pos = w.size() - 1; // -1 is for the initial $ of the first word
@@ -169,7 +167,7 @@ static void save_update_word(string &w, unsigned int minsize, map<uint64_t, word
     w.erase(0, w.size() - minsize);
 }
 
-uint64_t process_file(string &filename, size_t w, size_t p, map<uint64_t, word_stats> &wordFreq, vector<uint64_t> &g_vec, vector<char> &last_vec) {
+uint64_t process_file(string &filename, size_t w, size_t p, map<uint64_t, word_stats> &wordFreq, vector<uint64_t> &g_vec) {
     uint64_t pos = 0;
     assert( IBYTES <= sizeof(pos) );
     string word("");
@@ -191,12 +189,12 @@ uint64_t process_file(string &filename, size_t w, size_t p, map<uint64_t, word_s
         word.append(1, c);
         uint64_t hash = krw.addchar(c);
         if (hash % p == 0) {
-            save_update_word(word, w, wordFreq, g_vec, last_vec, pos);
+            save_update_word(word, w, wordFreq, g_vec, pos);
         }
     }
     f.close();
     word.append(w, Dollar);
-    save_update_word(word, w, wordFreq, g_vec, last_vec, pos);
+    save_update_word(word, w, wordFreq, g_vec, pos);
 
     return krw.tot_char;
 }
@@ -228,9 +226,9 @@ void writeDictOcc(map<uint64_t, word_stats> &wfreq, vector<const string *> &sort
     dict.push_back(EndOfDict);
 }
 
-void calculate_word_frequencies(string &filename, size_t w, size_t p, map<uint64_t, word_stats> &wordFreq, vector<uint64_t> &parse, vector<char> &last, size_t *size) {
+void calculate_word_frequencies(string &filename, size_t w, size_t p, map<uint64_t, word_stats> &wordFreq, vector<uint64_t> &parse, size_t *size) {
     try {
-        *size = process_file(filename, w, p, wordFreq, parse, last);
+        *size = process_file(filename, w, p, wordFreq, parse);
     } catch (const std::bad_alloc &) {
         cout << "Out of memory (parsing phase)... emergency exit\n";
         die("bad alloc exception");
@@ -713,8 +711,7 @@ Dict read_dictionary(vector<char> &dict) {
 
 void pf_parse(string &input, size_t w, size_t p, vector<uint64_t> &parse, Dict &dict, size_t *size) {
     map<uint64_t, word_stats> wordFreq;
-    vector<char> last{}; // this is maybe not needed
-    calculate_word_frequencies(input, w, p, wordFreq, parse, last, size);
+    calculate_word_frequencies(input, w, p, wordFreq, parse, size);
 
     // create array of dictionary words
     vector<const string *> dictArray;
