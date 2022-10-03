@@ -10,6 +10,7 @@
 #include <random>
 #include <sdsl/int_vector.hpp>
 #include <sdsl/io.hpp>
+#include <sdsl/wavelet_trees.hpp>
 #include <sstream>
 #include <stdexcept>
 #include <stdlib.h>
@@ -764,36 +765,24 @@ vector<uint64_t> compute_bwt(vector<uint64_t> &text) {
 }
 
 tfm_index construct_tfm_index(vector<uint64_t> &bwt) {
-    string bwt_filename = "bwt.tmp";
-    FILE *fout = fopen(bwt_filename.c_str(), "wb");
-    fwrite(bwt.data(), sizeof(bwt[0]), bwt.size(), fout);
-    fclose(fout);
+    int_vector<> L(bwt.size(), 0);
+    for (size_t i = 0; i < bwt.size(); i++) L[i] = bwt[i];
 
-    int_vector_buffer<> L(bwt_filename, std::ios::in, bwt.size(), 64, true);
-    wt_blcd_int<> wt_L = wt_blcd_int<>(L, bwt.size());
-    vector<uint64_t> C = vector<uint64_t>(wt_L.sigma + 1, 0);
-    for (uint64_t i = 0; i < bwt.size(); i++) C[L[i] + 1] += 1;
-    for (uint64_t i = 0; i < wt_L.sigma; i++) C[i + 1] += C[i];
+    wt_blcd_int<> wt_L;
+    construct_im(wt_L, L);
+    vector<uint64_t> C = tfm_index::get_C(L, wt_L.sigma);
 
-    bit_vector B;
-    pair<tfm_index::size_type, tfm_index::size_type> dbg_res;
-    dbg_res = dbg_algorithms::find_min_dbg(wt_L, C, B);
-
-    sdsl::bit_vector dout = B;
-    sdsl::bit_vector din;
-    std::swap(din, B);
+    bit_vector din;
+    dbg_algorithms::find_min_dbg(wt_L, C, din);
+    bit_vector dout = din;
     dbg_algorithms::mark_prefix_intervals(wt_L, C, dout, din);
-
-    sdsl::remove(bwt_filename);
-
-    vector<uint64_t> L2{};
 
     tfm_index::size_type p = 0;
     tfm_index::size_type q = 0;
+    size_t r = 0;
     for (tfm_index::size_type i = 0; i < wt_L.size(); i++) {
         if (din[i] == 1) {
-            L2.push_back(wt_L[i]);
-            // L2[p] = wt_L[i];
+            L[r++] = wt_L[i];
             dout[p++] = dout[i];
         }
         if (dout[i] == 1) {
@@ -804,12 +793,9 @@ tfm_index construct_tfm_index(vector<uint64_t> &bwt) {
     din[q++] = 1;
     dout.resize(p);
     din.resize(q);
+    L.resize(r);
 
-    int_vector<> L3(L2.size(), 0);
-    for (size_t i=0; i<L3.size(); i++) { L3[i] = L2[i]; }
-
-    tfm_index tfm_index(bwt.size(), L3, din, dout);
-
+    tfm_index tfm_index(bwt.size(), L, din, dout);
     return tfm_index;
 }
 
