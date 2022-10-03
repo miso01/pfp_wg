@@ -50,6 +50,14 @@ class tfm_index {
     rank_type m_din_rank;
     select_type m_din_select;
 
+    vector<uint64_t> get_C(int_vector<> &L, size_t sigma) {
+        // 255 handles char alphabet, sigma + 1 handles int alphabets
+        vector<uint64_t> v(max((size_t)255, sigma + 1), 0);
+        for (uint64_t i = 0; i < L.size(); i++) v[L[i] + 1] += 1;
+        for (uint64_t i = 0; i < v.size() - 1; i++) v[i + 1] += v[i];
+        return v;
+    }
+
   public:
     const wt_type &L = m_L;
     const std::vector<size_type> &C = m_C;
@@ -60,9 +68,20 @@ class tfm_index {
     const rank_type &din_rank = m_din_rank;
     const select_type &din_select = m_din_select;
 
-    friend tfm_index construct(size_t size, int_vector<> &L, bit_vector &din, bit_vector &dout);
-
     tfm_index() {};
+
+    tfm_index(size_t size, int_vector<> &L, bit_vector &din, bit_vector &dout) {
+        text_len = size;
+        construct_im(m_L, L);
+        m_C = get_C(L, m_L.sigma);
+        m_dout = dout;
+        m_din = din;
+
+        sdsl::util::init_support(m_dout_rank,   &m_dout);
+        sdsl::util::init_support(m_dout_select, &m_dout);
+        sdsl::util::init_support(m_din_rank,    &m_din);
+        sdsl::util::init_support(m_din_select,  &m_din);
+    }
 
     tfm_index(size_t size, int_vector<64> &L, bit_vector &din, bit_vector &dout) {
         string tmp_file_name = "construct_tfm_index.tmp";
