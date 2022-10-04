@@ -458,17 +458,13 @@ int_vector<> compute_L(size_t w, uint8_t *d, long dsize, uint64_t *end_to_phrase
     return L;
 }
 
-bit_vector create_from_boolvec(vector<bool> &v) {
-    bit_vector b(v.size(), 0);
-    for (size_t i=0; i < v.size(); i++) {
-        b[i] = v[i];
-    }
-    return b;
-}
-
-bit_vector compute_din(size_t w, uint8_t *d, long dsize, tfm_index &tfmp, long dwords, uint_t *sa, int_t *lcp) {
+void compute_degrees(
+    size_t w, uint8_t *d, long dsize, tfm_index &tfmp, long dwords, uint_t *sa, int_t *lcp,
+    bit_vector &din, bit_vector &dout
+) {
     uint_t *eos = sa + 1;
-    vector<bool> din{};
+    size_t p = 0;
+    size_t q = 0;
 
     long next;
     uint32_t seqid;
@@ -481,47 +477,17 @@ bit_vector compute_din(size_t w, uint8_t *d, long dsize, tfm_index &tfmp, long d
             // ----- simple case: the suffix is a full word
             uint32_t start = tfmp.C[seqid + 1], end = tfmp.C[seqid + 2];
             for (uint32_t j = start; j < end; j++) {
-                din.push_back(tfmp.din[j]);
+                din[p++] = tfmp.din[j];
             }
-        } else {
-            // ----- hard case: there can be a group of equal suffixes starting
-            // at i save seqid and the corresponding char
-            int bits_to_write = tfmp.C[seqid + 2] - tfmp.C[seqid + 1];
-            while (next < dsize && lcp[next] >= suffixLen) {
-                int_t nextsuffixLen = getlen(sa[next], eos, dwords, &seqid);
-                if (nextsuffixLen != suffixLen) break;
-                bits_to_write += tfmp.C[seqid + 2] - tfmp.C[seqid + 1];
-                next++;
-            }
-            for (int k = 0; k < bits_to_write; k++)
-                din.push_back(1);
-        }
-    }
-    din.push_back(1);
-    return create_from_boolvec(din);
-}
 
-bit_vector compute_dout(size_t w, uint8_t *d, long dsize, tfm_index &tfmp, long dwords, uint_t *sa, int_t *lcp) {
-    uint_t *eos = sa + 1;
-    vector<bool> dout{};
-
-    long next;
-    uint32_t seqid;
-    for (long i = dwords + w + 1; i < dsize; i = next) {
-        next = i + 1;
-        int_t suffixLen = getlen(sa[i], eos, dwords, &seqid);
-        if (suffixLen <= (int_t)w) continue;
-
-        if (sa[i] == 0 || d[sa[i] - 1] == EndOfWord) {
-            // ----- simple case: the suffix is a full word
-            uint32_t start = tfmp.C[seqid + 1], end = tfmp.C[seqid + 2];
+            start = tfmp.C[seqid + 1], end = tfmp.C[seqid + 2];
             for (uint32_t j = start; j < end; j++) {
                 if (tfmp.din[j] == 1) {
                     uint32_t pos = tfmp.dout_select(tfmp.din_rank(j + 1));
                     if (tfmp.L[pos] == 0)
                         pos = 0;
                     while (1) {
-                        dout.push_back(tfmp.dout[pos]);
+                        dout[q++] = tfmp.dout[pos];
                         if (tfmp.dout[++pos] == 1)
                             break;
                     }
@@ -538,12 +504,15 @@ bit_vector compute_dout(size_t w, uint8_t *d, long dsize, tfm_index &tfmp, long 
                 next++;
             }
             for (int k = 0; k < bits_to_write; k++) {
-                dout.push_back(1);
+                din[p++] = 1;
+                dout[q++] = 1;
             }
         }
     }
-    dout.push_back(1);
-    return create_from_boolvec(dout);
+    din[p++] = 1;
+    dout[q++] = 1;
+    din.resize(p);
+    dout.resize(q);
 }
 
 void generate_ilist(uint32_t *ilist, tfm_index &tfmp, uint64_t dwords) {
@@ -570,8 +539,10 @@ tfm_index unparse(tfm_index &wg_parse, Dict &dict, size_t w, size_t size) {
     compute_dict_bwt_lcp(dict.d, dict.dsize, dict.dwords, w, &sa_d, &lcp_d);
 
     int_vector<> L = compute_L(w, dict.d, dict.dsize, dict.end, inverted_list, wg_parse, dict.dwords, sa_d, lcp_d);
-    bit_vector din = compute_din(w, dict.d, dict.dsize, wg_parse, dict.dwords, sa_d, lcp_d);
-    bit_vector dout = compute_dout(w, dict.d, dict.dsize, wg_parse, dict.dwords, sa_d, lcp_d);
+    bit_vector din(L.size() + 1, 1);
+    bit_vector dout(L.size() + 1, 1);
+
+    compute_degrees(w, dict.d, dict.dsize, wg_parse, dict.dwords, sa_d, lcp_d, din, dout);
 
     tfm_index tfm(size, L, din, dout);
     return tfm;
