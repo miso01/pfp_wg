@@ -458,10 +458,16 @@ int_vector<> compute_L(size_t w, uint8_t *d, long dsize, uint64_t *end_to_phrase
     return L;
 }
 
+// compute_degrees(wg_parse, dict, w, sa_d, lcp_d, din, dout);
+// compute_degrees(w, dict.d, dict.dsize, wg_parse, dict.dwords, sa_d, lcp_d, din, dout);
 void compute_degrees(
-    size_t w, uint8_t *d, long dsize, tfm_index &tfmp, long dwords, uint_t *sa, int_t *lcp,
+    tfm_index &tfmp, Dict &dict, size_t w, uint_t *sa, int_t *lcp,
     bit_vector &din, bit_vector &dout
 ) {
+    uint8_t *d = dict.d;
+    long dsize = dict.dsize;
+    long dwords = dict.dwords;
+
     uint_t *eos = sa + 1;
     size_t p = 0;
     size_t q = 0;
@@ -542,7 +548,7 @@ tfm_index unparse(tfm_index &wg_parse, Dict &dict, size_t w, size_t size) {
     bit_vector din(L.size() + 1, 1);
     bit_vector dout(L.size() + 1, 1);
 
-    compute_degrees(w, dict.d, dict.dsize, wg_parse, dict.dwords, sa_d, lcp_d, din, dout);
+    compute_degrees(wg_parse, dict, w, sa_d, lcp_d, din, dout);
 
     tfm_index tfm(size, L, din, dout);
     return tfm;
