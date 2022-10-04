@@ -467,53 +467,31 @@ bit_vector create_from_boolvec(vector<bool> &v) {
 }
 
 bit_vector compute_din(size_t w, uint8_t *d, long dsize, tfm_index &tfmp, long dwords, uint_t *sa, int_t *lcp) {
-    // starting point in ilist for each word and # words
-
-    // derive eos from sa. for i=0...dwords-1, eos[i] is the eos position of
-    // string i in d
     uint_t *eos = sa + 1;
-    for (int i = 0; i < dwords - 1; i++)
-        assert(eos[i] < eos[i + 1]);
-
     vector<bool> din{};
 
-    // main loop: consider each entry in the SA of dict
     long next;
     uint32_t seqid;
     for (long i = dwords + w + 1; i < dsize; i = next) {
-        // we are considering d[sa[i]....]
-        next = i + 1; // prepare for next iteration
-        // compute length of this suffix and sequence it belongs
+        next = i + 1;
         int_t suffixLen = getlen(sa[i], eos, dwords, &seqid);
-        //  ignore suffixes of lenght <= w
-        if (suffixLen <= (int_t)w)
-            continue;
-        // ----- simple case: the suffix is a full word
+        if (suffixLen <= (int_t)w) continue;
+
         if (sa[i] == 0 || d[sa[i] - 1] == EndOfWord) {
+            // ----- simple case: the suffix is a full word
             uint32_t start = tfmp.C[seqid + 1], end = tfmp.C[seqid + 2];
-            assert(tfmp.din[start] == 1);
             for (uint32_t j = start; j < end; j++) {
                 din.push_back(tfmp.din[j]);
             }
-            continue; // proceed with next i
         } else {
             // ----- hard case: there can be a group of equal suffixes starting
             // at i save seqid and the corresponding char
             int bits_to_write = tfmp.C[seqid + 2] - tfmp.C[seqid + 1];
             while (next < dsize && lcp[next] >= suffixLen) {
-                assert(
-                    lcp[next] == suffixLen
-                ); // the lcp cannot be greater than suffixLen
-                assert(
-                    sa[next] > 0 && d[sa[next] - 1] != EndOfWord
-                ); // sa[next] cannot be a full word
                 int_t nextsuffixLen = getlen(sa[next], eos, dwords, &seqid);
-                assert(nextsuffixLen >= suffixLen);
-                if (nextsuffixLen == suffixLen) {
-                    bits_to_write += tfmp.C[seqid + 2] - tfmp.C[seqid + 1];
-                    next++;
-                } else
-                    break;
+                if (nextsuffixLen != suffixLen) break;
+                bits_to_write += tfmp.C[seqid + 2] - tfmp.C[seqid + 1];
+                next++;
             }
             for (int k = 0; k < bits_to_write; k++)
                 din.push_back(1);
@@ -524,30 +502,19 @@ bit_vector compute_din(size_t w, uint8_t *d, long dsize, tfm_index &tfmp, long d
 }
 
 bit_vector compute_dout(size_t w, uint8_t *d, long dsize, tfm_index &tfmp, long dwords, uint_t *sa, int_t *lcp) {
-    // derive eos from sa. for i=0...dwords-1, eos[i] is the eos position of
-    // string i in d
     uint_t *eos = sa + 1;
-    for (int i = 0; i < dwords - 1; i++)
-        assert(eos[i] < eos[i + 1]);
-
     vector<bool> dout{};
 
-    // main loop: consider each entry in the SA of dict
     long next;
     uint32_t seqid;
     for (long i = dwords + w + 1; i < dsize; i = next) {
-        // we are considering d[sa[i]....]
-        next = i + 1; // prepare for next iteration
-        // compute length of this suffix and sequence it belongs
+        next = i + 1;
         int_t suffixLen = getlen(sa[i], eos, dwords, &seqid);
-        // cout << suffixLen << " " << seqid << endl;
-        //  ignore suffixes of lenght <= w
-        if (suffixLen <= (int_t)w)
-            continue;
-        // ----- simple case: the suffix is a full word
+        if (suffixLen <= (int_t)w) continue;
+
         if (sa[i] == 0 || d[sa[i] - 1] == EndOfWord) {
+            // ----- simple case: the suffix is a full word
             uint32_t start = tfmp.C[seqid + 1], end = tfmp.C[seqid + 2];
-            assert(tfmp.din[start] == 1);
             for (uint32_t j = start; j < end; j++) {
                 if (tfmp.din[j] == 1) {
                     uint32_t pos = tfmp.dout_select(tfmp.din_rank(j + 1));
@@ -560,25 +527,15 @@ bit_vector compute_dout(size_t w, uint8_t *d, long dsize, tfm_index &tfmp, long 
                     }
                 }
             }
-            continue; // proceed with next i
         } else {
             // ----- hard case: there can be a group of equal suffixes starting
             // at i save seqid and the corresponding char
             int bits_to_write = tfmp.C[seqid + 2] - tfmp.C[seqid + 1];
             while (next < dsize && lcp[next] >= suffixLen) {
-                assert(
-                    lcp[next] == suffixLen
-                ); // the lcp cannot be greater than suffixLen
-                assert(
-                    sa[next] > 0 && d[sa[next] - 1] != EndOfWord
-                ); // sa[next] cannot be a full word
                 int_t nextsuffixLen = getlen(sa[next], eos, dwords, &seqid);
-                assert(nextsuffixLen >= suffixLen);
-                if (nextsuffixLen == suffixLen) {
-                    bits_to_write += tfmp.C[seqid + 2] - tfmp.C[seqid + 1];
-                    next++;
-                } else
-                    break;
+                if (nextsuffixLen != suffixLen) break;
+                bits_to_write += tfmp.C[seqid + 2] - tfmp.C[seqid + 1];
+                next++;
             }
             for (int k = 0; k < bits_to_write; k++) {
                 dout.push_back(1);
