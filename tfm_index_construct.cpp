@@ -312,7 +312,8 @@ int_vector<> compute_L(size_t w, uint8_t *d, long dsize, uint64_t *end_to_phrase
     vector<char> out{};
 
     // main loop: consider each entry in the SA of dict
-    long full_words = 0, easy_bwts = 0, hard_bwts = 0, next;
+    // long hard_bwts = 0;
+    long next;
     uint32_t seqid;
     for (long i = dwords + w + 1; i < dsize; i = next) {
         // we are considering d[sa[i]....]
@@ -323,22 +324,18 @@ int_vector<> compute_L(size_t w, uint8_t *d, long dsize, uint64_t *end_to_phrase
 
         if (sa[i] == 0 || d[sa[i] - 1] == EndOfWord) {
             // ----- simple case: the suffix is a full word
-            full_words++;
             uint32_t start = tfmp.C[seqid + 1], end = tfmp.C[seqid + 2];
-            assert(tfmp.din[start] == 1);
             for (uint32_t j = start; j < end; j++) {
                 if (tfmp.din[j] == 1) {
                     uint32_t pos = tfmp.dout_select(tfmp.din_rank(j + 1));
-                    while (1) {
-                        if (tfmp.L[pos] == 0)
-                            pos = 0;
+                    do {
+                        if (tfmp.L[pos] == 0) pos = 0;
                         uint32_t act_phrase = tfmp.L[pos] - 1;
                         uint8_t char_to_write = get_prev(w, d, end_to_phrase, act_phrase);
-                        easy_bwts++;
                         out.push_back(char_to_write);
-                        if (tfmp.dout[++pos] == 1)
-                            break;
-                    }
+                        // if (tfmp.dout[++pos] == 1)
+                        //    break;
+                    } while (tfmp.dout[++pos] != 1);
                 }
             }
         } else {
@@ -367,7 +364,6 @@ int_vector<> compute_L(size_t w, uint8_t *d, long dsize, uint64_t *end_to_phrase
                     for (uint64_t j = tfmp.C[s]; j < tfmp.C[s + 1]; j++) {
                         out.push_back(char2write[0]);
                     }
-                    easy_bwts += tfmp.C[s + 1] - tfmp.C[s];
                 }
             } else {
                 // many words, many chars...
@@ -384,7 +380,6 @@ int_vector<> compute_L(size_t w, uint8_t *d, long dsize, uint64_t *end_to_phrase
                     // output char for the top of the heap
                     SeqId s = heap.front();
                     out.push_back(s.char2write);
-                    hard_bwts += 1;
                     // remove top
                     pop_heap(heap.begin(), heap.end());
                     heap.pop_back();
