@@ -311,14 +311,10 @@ int_vector<> compute_L(size_t w, uint8_t *d, long dsize, uint64_t *end_to_phrase
     uint_t *eos = sa + 1;
     vector<char> out{};
 
-    // main loop: consider each entry in the SA of dict
-    // long hard_bwts = 0;
     long next;
     uint32_t seqid;
     for (long i = dwords + w + 1; i < dsize; i = next) {
-        // we are considering d[sa[i]....]
-        next = i + 1; // prepare for next iteration
-        // compute length of this suffix and sequence it belongs
+        next = i + 1;
         int_t suffixLen = getlen(sa[i], eos, dwords, &seqid);
         if (suffixLen <= (int_t)w) continue;
 
@@ -344,13 +340,12 @@ int_vector<> compute_L(size_t w, uint8_t *d, long dsize, uint64_t *end_to_phrase
             vector<uint8_t> char2write(1, d[sa[i] - 1]);
             while (next < dsize && lcp[next] >= suffixLen) {
                 int_t nextsuffixLen = getlen(sa[next], eos, dwords, &seqid);
-                if (nextsuffixLen == suffixLen) {
-                    id2merge.push_back(seqid); // sequence to consider
-                    char2write.push_back(d[sa[next] - 1]); // corresponding char
-                    next++;
-                } else
-                    break;
+                if (nextsuffixLen != suffixLen) break;
+                id2merge.push_back(seqid); // sequence to consider
+                char2write.push_back(d[sa[next] - 1]); // corresponding char
+                next++;
             }
+
             size_t numwords = id2merge.size(); // numwords dictionary words contain the same suffix
             bool samechar = true;
             for (size_t i = 1; (i < numwords) && samechar; i++) {
@@ -421,11 +416,10 @@ void compute_degrees(
 
         if (sa[i] == 0 || d[sa[i] - 1] == EndOfWord) {
             // ----- simple case: the suffix is a full word
-            uint32_t start = tfmp.C[seqid + 1], end = tfmp.C[seqid + 2];
-            for (uint32_t j = start; j < end; j++) { din[p++] = tfmp.din[j]; }
-
-            start = tfmp.C[seqid + 1], end = tfmp.C[seqid + 2];
+            uint32_t start = tfmp.C[seqid + 1];
+            uint32_t end = tfmp.C[seqid + 2];
             for (uint32_t j = start; j < end; j++) {
+                din[p++] = tfmp.din[j];
                 if (tfmp.din[j] == 1) {
                     uint32_t pos = tfmp.dout_select(tfmp.din_rank(j + 1));
                     if (tfmp.L[pos] == 0) pos = 0;
