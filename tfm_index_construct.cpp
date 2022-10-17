@@ -324,7 +324,8 @@ int_vector<> compute_L(size_t w, uint8_t *d, long dsize, uint64_t *end_to_phrase
 
         if (sa[i] == 0 || d[sa[i] - 1] == EndOfWord) {
             // ----- simple case: the suffix is a full word
-            uint32_t start = tfmp.C[seqid + 1], end = tfmp.C[seqid + 2];
+            uint32_t start = tfmp.C[seqid + 1];
+            uint32_t end = tfmp.C[seqid + 2];
             for (uint32_t j = start; j < end; j++) {
                 if (tfmp.din[j] == 1) {
                     uint32_t pos = tfmp.dout_select(tfmp.din_rank(j + 1));
@@ -333,8 +334,6 @@ int_vector<> compute_L(size_t w, uint8_t *d, long dsize, uint64_t *end_to_phrase
                         uint32_t act_phrase = tfmp.L[pos] - 1;
                         uint8_t char_to_write = get_prev(w, d, end_to_phrase, act_phrase);
                         out.push_back(char_to_write);
-                        // if (tfmp.dout[++pos] == 1)
-                        //    break;
                     } while (tfmp.dout[++pos] != 1);
                 }
             }
@@ -423,21 +422,15 @@ void compute_degrees(
         if (sa[i] == 0 || d[sa[i] - 1] == EndOfWord) {
             // ----- simple case: the suffix is a full word
             uint32_t start = tfmp.C[seqid + 1], end = tfmp.C[seqid + 2];
-            for (uint32_t j = start; j < end; j++) {
-                din[p++] = tfmp.din[j];
-            }
+            for (uint32_t j = start; j < end; j++) { din[p++] = tfmp.din[j]; }
 
             start = tfmp.C[seqid + 1], end = tfmp.C[seqid + 2];
             for (uint32_t j = start; j < end; j++) {
                 if (tfmp.din[j] == 1) {
                     uint32_t pos = tfmp.dout_select(tfmp.din_rank(j + 1));
-                    if (tfmp.L[pos] == 0)
-                        pos = 0;
-                    while (1) {
-                        dout[q++] = tfmp.dout[pos];
-                        if (tfmp.dout[++pos] == 1)
-                            break;
-                    }
+                    if (tfmp.L[pos] == 0) pos = 0;
+                    do { dout[q++] = tfmp.dout[pos]; }
+                    while (tfmp.dout[++pos] != 1);
                 }
             }
         } else {
