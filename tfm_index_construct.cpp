@@ -308,10 +308,9 @@ inline uint8_t get_prev(int w, uint8_t *d, uint64_t *end, uint32_t seqid) {
 }
 
 size_t get_untunneled_size(tfm_index &tfmp, Dict &dict, size_t w, uint_t *sa, int_t *lcp, uint32_t *ilist) {
-    dict.d[0] = 0;
-    uint_t *eos = sa + 1;
     size_t size = 0;
-    // vector<char> out{};
+
+    uint_t *eos = sa + 1;
 
     uint64_t next;
     uint32_t seqid;
@@ -327,11 +326,8 @@ size_t get_untunneled_size(tfm_index &tfmp, Dict &dict, size_t w, uint_t *sa, in
             for (uint32_t j = start; j < end; j++) {
                 if (tfmp.din[j] == 1) {
                     uint32_t pos = tfmp.dout_select(tfmp.din_rank(j + 1));
-                    do {
-                        if (tfmp.L[pos] == 0) pos = 0;
-                        uint32_t act_phrase = tfmp.L[pos] - 1;
-                        size++;
-                    } while (tfmp.dout[++pos] != 1);
+                    size++; pos++;
+                    while (tfmp.dout[pos] != 1) { size++; pos++; }
                 }
             }
         } else {
@@ -356,9 +352,7 @@ size_t get_untunneled_size(tfm_index &tfmp, Dict &dict, size_t w, uint_t *sa, in
             if (samechar) {
                 for (size_t i = 0; i < numwords; i++) {
                     uint32_t s = id2merge[i] + 1;
-                    for (uint64_t j = tfmp.C[s]; j < tfmp.C[s + 1]; j++) {
-                        size++;
-                    }
+                    size += tfmp.C[s + 1] - tfmp.C[s];
                 }
             } else {
                 // many words, many chars...
@@ -366,18 +360,20 @@ size_t get_untunneled_size(tfm_index &tfmp, Dict &dict, size_t w, uint_t *sa, in
                 for (size_t i = 0; i < numwords; i++) {
                     uint32_t s = id2merge[i] + 1;
                     heap.push_back(SeqId(
-                        s, tfmp.C[s + 1] - tfmp.C[s], ilist + (tfmp.C[s] - 1),
-                        char2write[i]
+                        s,                          // letter from parse
+                        tfmp.C[s + 1] - tfmp.C[s],  // num of occ in parse
+                        ilist + (tfmp.C[s] - 1),    // ???
+                        char2write[i]               // previous chars
                     ));
                 }
                 std::make_heap(heap.begin(), heap.end());
                 while (heap.size() > 0) {
                     // output char for the top of the heap
                     SeqId s = heap.front();
-                    size++;
-                    // remove top
                     pop_heap(heap.begin(), heap.end());
                     heap.pop_back();
+
+                    size++;
                     // if remaining positions, reinsert to heap
                     if (s.next()) {
                         heap.push_back(s);
@@ -392,7 +388,6 @@ size_t get_untunneled_size(tfm_index &tfmp, Dict &dict, size_t w, uint_t *sa, in
 }
 
 int_vector<> compute_L(size_t w, uint8_t *d, long dsize, uint64_t *end_to_phrase, uint32_t *ilist, tfm_index &tfmp, long dwords, uint_t *sa, int_t *lcp) {
-    d[0] = 0;
     uint_t *eos = sa + 1;
     vector<char> out{};
 
@@ -558,6 +553,7 @@ tfm_index unparse(tfm_index &wg_parse, Dict &dict, size_t w, size_t size) {
     // separators s[i]=1 and with s[n-1]=0
     // cout << dict.d << "\n" << dict.dsize << endl;;
     gsacak(dict.d, sa_d, lcp_d, NULL, dict.dsize);
+    dict.d[0] = 0;
 
     size_t s = get_untunneled_size(wg_parse, dict, w, sa_d, lcp_d, inverted_list);
     int_vector<> L = compute_L(w, dict.d, dict.dsize, dict.end, inverted_list, wg_parse, dict.dwords, sa_d, lcp_d);
