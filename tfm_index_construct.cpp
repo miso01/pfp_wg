@@ -168,17 +168,16 @@ static void save_update_word(string &w, unsigned int minsize, map<uint64_t, word
 }
 
 uint64_t process_file(string &filename, size_t w, size_t p, map<uint64_t, word_stats> &wordFreq, vector<uint64_t> &g_vec) {
-    uint64_t pos = 0;
-    assert( IBYTES <= sizeof(pos) );
-    string word("");
-    word.append(1, Dollar);
-    KR_window krw(w);
-    std::string line;
     ifstream f(filename);
     if (!f.rdbuf()->is_open()) { // is_open does not work on igzstreams
         perror(__func__);
         throw new std::runtime_error("Cannot open input file " + filename);
     }
+
+    uint64_t pos = 0;
+    string word("");
+    word.append(1, Dollar);
+    KR_window krw(w);
     int c;
     while ((c = f.get()) != EOF) {
         if (c <= Dollar) {
@@ -192,10 +191,10 @@ uint64_t process_file(string &filename, size_t w, size_t p, map<uint64_t, word_s
             save_update_word(word, w, wordFreq, g_vec, pos);
         }
     }
-    f.close();
     word.append(w, Dollar);
     save_update_word(word, w, wordFreq, g_vec, pos);
 
+    f.close();
     return krw.tot_char;
 }
 
@@ -277,36 +276,6 @@ static int_t getlen(uint_t p, uint_t eos[], long n, uint32_t *seqid) {
     *seqid = binsearch(p, eos, n);
     assert(eos[*seqid] > p); // distance between position p and the next $
     return eos[*seqid] - p;
-}
-
-static void compute_dict_bwt_lcp(uint8_t *d, long dsize, long dwords, int w, uint_t **sap, int_t **lcpp) {
-    uint_t *sa = new uint_t[dsize];
-    int_t *lcp = new int_t[dsize];
-    (void)dwords;
-    (void)w;
-
-    gsacak(d, sa, lcp, NULL, dsize);
-    assert(d[dsize - 1] == EndOfDict);
-    assert(sa[0] == (unsigned long)dsize - 1); // sa[0] is the EndOfDict symbol
-    for (long i = 0; i < dwords; i++)
-        assert(d[sa[i + 1]] == EndOfWord); // there are dwords EndOfWord symbols
-    // EndOfWord symbols are in position order, so the last is d[dsize-2]
-    assert(sa[dwords] == (unsigned long)dsize - 2);
-    // there are wsize+1 $ symbols:
-    // one at the beginning of the first word, wsize at the end of the last word
-    for (long i = 0; i <= w; i++)
-        assert(d[sa[i + dwords + 1]] == Dollar);
-    // in sa[dwords+w+1] we have the first word in the parsing since that $ is
-    // the lex. larger
-    assert(d[0] == Dollar);
-    assert(sa[dwords + w + 1] == 0);
-    assert(
-        d[sa[dwords + w + 2]] > Dollar
-    ); // end of Dollar chars in the first column
-    assert(lcp[dwords + w + 2] == 0);
-    // copy sa and lcp address
-    *sap = sa;
-    *lcpp = lcp;
 }
 
 struct SeqId {
@@ -540,9 +509,11 @@ tfm_index unparse(tfm_index &wg_parse, Dict &dict, size_t w, size_t size) {
     uint32_t *inverted_list = new uint32_t[wg_parse.L.size() - 1];
     generate_ilist(inverted_list, wg_parse, dict.dwords);
 
-    uint_t *sa_d;
-    int_t *lcp_d;
-    compute_dict_bwt_lcp(dict.d, dict.dsize, dict.dwords, w, &sa_d, &lcp_d);
+    uint_t *sa_d = new uint_t[dict.dsize];
+    int_t *lcp_d = new int_t[dict.dsize];
+    // separators s[i]=1 and with s[n-1]=0
+    // cout << dict.d << "\n" << dict.dsize << endl;;
+    gsacak(dict.d, sa_d, lcp_d, NULL, dict.dsize);
 
     int_vector<> L = compute_L(w, dict.d, dict.dsize, dict.end, inverted_list, wg_parse, dict.dwords, sa_d, lcp_d);
     bit_vector din(L.size() + 1, 1);
