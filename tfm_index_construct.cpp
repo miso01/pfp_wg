@@ -307,17 +307,8 @@ inline uint8_t get_prev(int w, uint8_t *d, uint64_t *end, uint32_t seqid) {
 }
 
 int_vector<> compute_L(size_t w, uint8_t *d, long dsize, uint64_t *end_to_phrase, uint32_t *ilist, tfm_index &tfmp, long dwords, uint_t *sa, int_t *lcp) {
-    // starting point in ilist for each word and # words
-    // set d[0]==0 as this is the EOF char in the final BWT
-    assert(d[0] == Dollar);
     d[0] = 0;
-
-    // derive eos from sa. for i=0...dwords-1, eos[i] is the eos position of
-    // string i in d
     uint_t *eos = sa + 1;
-    for (int i = 0; i < dwords - 1; i++)
-        assert(eos[i] < eos[i + 1]);
-
     vector<char> out{};
 
     // main loop: consider each entry in the SA of dict
@@ -328,11 +319,10 @@ int_vector<> compute_L(size_t w, uint8_t *d, long dsize, uint64_t *end_to_phrase
         next = i + 1; // prepare for next iteration
         // compute length of this suffix and sequence it belongs
         int_t suffixLen = getlen(sa[i], eos, dwords, &seqid);
-        //  ignore suffixes of lenght <= w
-        if (suffixLen <= (int_t)w)
-            continue;
-        // ----- simple case: the suffix is a full word
+        if (suffixLen <= (int_t)w) continue;
+
         if (sa[i] == 0 || d[sa[i] - 1] == EndOfWord) {
+            // ----- simple case: the suffix is a full word
             full_words++;
             uint32_t start = tfmp.C[seqid + 1], end = tfmp.C[seqid + 2];
             assert(tfmp.din[start] == 1);
@@ -351,21 +341,13 @@ int_vector<> compute_L(size_t w, uint8_t *d, long dsize, uint64_t *end_to_phrase
                     }
                 }
             }
-            continue; // proceed with next i
         } else {
             // ----- hard case: there can be a group of equal suffixes starting
             // at i save seqid and the corresponding char
             vector<uint32_t> id2merge(1, seqid);
             vector<uint8_t> char2write(1, d[sa[i] - 1]);
             while (next < dsize && lcp[next] >= suffixLen) {
-                assert(
-                    lcp[next] == suffixLen
-                ); // the lcp cannot be greater than suffixLen
-                assert(
-                    sa[next] > 0 && d[sa[next] - 1] != EndOfWord
-                ); // sa[next] cannot be a full word
                 int_t nextsuffixLen = getlen(sa[next], eos, dwords, &seqid);
-                assert(nextsuffixLen >= suffixLen);
                 if (nextsuffixLen == suffixLen) {
                     id2merge.push_back(seqid); // sequence to consider
                     char2write.push_back(d[sa[next] - 1]); // corresponding char
@@ -373,10 +355,6 @@ int_vector<> compute_L(size_t w, uint8_t *d, long dsize, uint64_t *end_to_phrase
                 } else
                     break;
             }
-            // output to fbwt the bwt chars corresponding to the current
-            // dictionary suffix, and, if requested, some SA values
-            // fwrite_chars_same_suffix(id2merge, char2write, tfmp, ilist, fbwt, easy_bwts, hard_bwts);
-            // static void fwrite_chars_same_suffix(vector<uint32_t> &id2merge, vector<uint8_t> &char2write, tfm_index &tfmp, uint32_t *ilist, FILE *fbwt, long &easy_bwts, long &hard_bwts) {
             size_t numwords = id2merge.size(); // numwords dictionary words contain the same suffix
             bool samechar = true;
             for (size_t i = 1; (i < numwords) && samechar; i++) {
@@ -419,7 +397,6 @@ int_vector<> compute_L(size_t w, uint8_t *d, long dsize, uint64_t *end_to_phrase
             }
         }
     }
-    assert(full_words == dwords);
 
     int_vector<> L(out.size(), 0);
     for (size_t i=0; i<L.size(); i++) { L[i] = out[i]; }
