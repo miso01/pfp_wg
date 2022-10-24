@@ -310,13 +310,11 @@ inline uint8_t get_prev(int w, uint8_t *d, uint64_t *end, uint32_t seqid) {
 size_t get_untunneled_size(tfm_index &tfmp, Dict &dict, size_t w, uint_t *sa, int_t *lcp, uint32_t *ilist) {
     size_t size = 0;
 
-    uint_t *eos = sa + 1;
-
     uint64_t next;
     uint32_t seqid;
     for (uint64_t i = dict.dwords + w + 1; i < dict.dsize; i = next) {
         next = i + 1;
-        int_t suffixLen = getlen(sa[i], eos, dict.dwords, &seqid);
+        int_t suffixLen = getlen(sa[i], sa + 1, dict.dwords, &seqid);
         if (suffixLen <= (int_t)w) continue;
 
         if (sa[i] == 0 || dict.d[sa[i] - 1] == EndOfWord) {
@@ -336,7 +334,7 @@ size_t get_untunneled_size(tfm_index &tfmp, Dict &dict, size_t w, uint_t *sa, in
             vector<uint32_t> id2merge(1, seqid);
             vector<uint8_t> char2write(1, dict.d[sa[i] - 1]);
             while (next < dict.dsize && lcp[next] >= suffixLen) {
-                int_t nextsuffixLen = getlen(sa[next], eos, dict.dwords, &seqid);
+                int_t nextsuffixLen = getlen(sa[next], sa + 1, dict.dwords, &seqid);
                 if (nextsuffixLen != suffixLen) break;
                 id2merge.push_back(seqid); // sequence to consider
                 char2write.push_back(dict.d[sa[next] - 1]); // corresponding char
