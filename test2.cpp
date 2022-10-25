@@ -89,21 +89,44 @@ int_t getlen(uint_t p, uint_t eos[], long n, uint32_t *seqid) {
     return eos[*seqid] - p;
 }
 
-// void tmp(tfm_index &wg, Dict &dict, size_t w, uint32_t *sa, int32_t *lcp, uint32_t *ilist) {
-//     uint32_t seqid;
-//     cout << dict.dwords + w + 1;
-//     for (uint64_t i = 0; i < dict.dsize; i++) {
-//         // cout << dict.d + sa[i] << endl;
-//         // int32_t suffixLen = getlen(sa[i], sa + 1, dict.dwords, &seqid);
-//         // if (suffixLen <= (int32_t)w) continue;
-//         // char prev = dict.d[sa[i] - 1];
-//         // uint64_t parse_occ = wg.C[seqid + 1] - wg.C[seqid];
-//         // uint32_t *rank = ilist + (wg.C[seqid] - 1);
+void tmp(tfm_index &wg, Dict &dict, size_t w, uint32_t *sa, int32_t *lcp, uint32_t *ilist) {
+    for (size_t i=0; i<dict.dsize; i++) {
+        if (dict.d[i] == '\001') dict.d[i] = '$';
+        if (dict.d[i] == '\002') dict.d[i] = '#';
+    }
 
-//         // printf("%.*s\n", suffixLen, dict.d + sa[i]);
-//         // cout << prev << "\t" << nextsuffixLen << "\n";
-//     }
-// }
+    for (size_t i=0; i<dict.dsize; i++) {
+        // uint32_t seqid = binsearch(sa_d[i], sa_d + 1, dict.dwords);
+        uint32_t seqid = 0;
+        // int32_t suffixLen = getlen(sa_d[i], sa_d + 1, dict.dwords, &seqid);
+        cout << i << "\t"
+             << sa[i] << "\t"
+             << seqid << "\t"
+             << dict.d + sa[i] << endl;
+    }
+
+    for (size_t i=0; i<dict.dsize; i++) {
+        if (dict.d[i] == '$') dict.d[i] = '\001';
+        if (dict.d[i] == '#') dict.d[i] = '\002';
+    }
+
+    // seqid = binsearch(sa[i], eos, dwords);
+    //     int_t suffixLen = eos[seqid] - sa[i];
+
+    // uint32_t seqid;
+    // cout << dict.dwords + w + 1;
+    // for (uint64_t i = 0; i < dict.dsize; i++) {
+        // cout << dict.d + sa[i] << endl;
+        // int32_t suffixLen = getlen(sa[i], sa + 1, dict.dwords, &seqid);
+        // if (suffixLen <= (int32_t)w) continue;
+        // char prev = dict.d[sa[i] - 1];
+        // uint64_t parse_occ = wg.C[seqid + 1] - wg.C[seqid];
+        // uint32_t *rank = ilist + (wg.C[seqid] - 1);
+
+        // printf("%.*s\n", suffixLen, dict.d + sa[i]);
+        // cout << prev << "\t" << nextsuffixLen << "\n";
+    // }
+}
 
 size_t get_untunneled_size(tfm_index &tfmp, Dict &dict, size_t w, uint32_t *sa, int32_t *lcp, uint32_t *ilist) {
     size_t size = 0;
@@ -347,7 +370,8 @@ tfm_index unparse(tfm_index &wg_parse, Dict &dict, size_t w, size_t size) {
     // separators s[i]=1 and with s[n-1]=0
     // cout << dict.d << "\n" << dict.dsize << endl;;
     gsacak(dict.d, sa_d, lcp_d, NULL, dict.dsize);
-    dict.d[0] = 0;
+
+    tmp(wg_parse, dict, w, sa_d, lcp_d, inverted_list);
 
     size_t s = get_untunneled_size(wg_parse, dict, w, sa_d, lcp_d, inverted_list);
     int_vector<> L = compute_L(w, dict.d, dict.dsize, dict.end, inverted_list, wg_parse, dict.dwords, sa_d, lcp_d);
