@@ -546,8 +546,8 @@ tfm_index unparse(tfm_index &wg_parse, Dict &dict, size_t w, size_t size) {
     uint32_t *inverted_list = new uint32_t[wg_parse.L.size() - 1];
     generate_ilist(inverted_list, wg_parse, dict.dwords);
 
-    uint_t *sa_d = new uint_t[dict.dsize];
-    int_t *lcp_d = new int_t[dict.dsize];
+    uint32_t *sa_d = new uint32_t[dict.dsize];
+    int32_t *lcp_d = new int32_t[dict.dsize];
     // separators s[i]=1 and with s[n-1]=0
     // cout << dict.d << "\n" << dict.dsize << endl;;
     gsacak(dict.d, sa_d, lcp_d, NULL, dict.dsize);

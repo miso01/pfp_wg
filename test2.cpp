@@ -13,6 +13,13 @@
 using namespace std;
 using namespace sdsl;
 
+struct Dict {
+    uint8_t *d; // pointer to the dictionary
+    uint64_t *end; // end[i] is the index of the ending symbol of the i-th phrase
+    uint64_t dsize;  // dicionary size in symbols
+    uint64_t dwords; // the number of phrases of the dicionary
+};
+
 string untunnel(tfm_index &tfm) {
     string original(tfm.size(), ' ');
 
@@ -25,13 +32,6 @@ string untunnel(tfm_index &tfm) {
 
     return original;
 }
-
-struct Dict {
-    uint8_t *d; // pointer to the dictionary
-    uint64_t *end; // end[i] is the index of the ending symbol of the i-th phrase
-    uint64_t dsize;  // dicionary size in symbols
-    uint64_t dwords; // the number of phrases of the dicionary
-};
 
 void tmp(tfm_index &wg, Dict &dict, size_t w, uint32_t *sa, int32_t *lcp, uint32_t *ilist) {
     uint32_t seqid;
@@ -49,39 +49,111 @@ void tmp(tfm_index &wg, Dict &dict, size_t w, uint32_t *sa, int32_t *lcp, uint32
     }
 }
 
+void compute_degrees(
+    tfm_index &tfmp, Dict &dict, size_t w, uint32_t *sa, int32_t *lcp,
+    bit_vector &din, bit_vector &dout
+) {
+    uint8_t *d = dict.d;
+    long dsize = dict.dsize;
+    long dwords = dict.dwords;
+
+    uint32_t *eos = sa + 1;
+    size_t p = 0;
+    size_t q = 0;
+
+    long next;
+    uint32_t seqid;
+    for (long i = dwords + w + 1; i < dsize; i = next) {
+        next = i + 1;
+        int32_t suffixLen = getlen(sa[i], eos, dwords, &seqid);
+        if (suffixLen <= (int32_t)w) continue;
+
+        if (sa[i] == 0 || d[sa[i] - 1] == EndOfWord) {
+            // ----- simple case: the suffix is a full word
+            uint32_t start = tfmp.C[seqid + 1];
+            uint32_t end = tfmp.C[seqid + 2];
+            for (uint32_t j = start; j < end; j++) {
+                din[p++] = tfmp.din[j];
+                if (tfmp.din[j] == 1) {
+                    uint32_t pos = tfmp.dout_select(tfmp.din_rank(j + 1));
+                    if (tfmp.L[pos] == 0) pos = 0;
+                    do { dout[q++] = tfmp.dout[pos]; }
+                    while (tfmp.dout[++pos] != 1);
+                }
+            }
+        } else {
+            // ----- hard case: there can be a group of equal suffixes starting
+            // at i save seqid and the corresponding char
+            int bits_to_write = tfmp.C[seqid + 2] - tfmp.C[seqid + 1];
+            while (next < dsize && lcp[next] >= suffixLen) {
+                int32_t nextsuffixLen = getlen(sa[next], eos, dwords, &seqid);
+                if (nextsuffixLen != suffixLen) break;
+                bits_to_write += tfmp.C[seqid + 2] - tfmp.C[seqid + 1];
+                next++;
+            }
+            for (int k = 0; k < bits_to_write; k++) {
+                din[p++] = 1;
+                dout[q++] = 1;
+            }
+        }
+    }
+    din[p++] = 1;
+    dout[q++] = 1;
+    din.resize(p);
+    dout.resize(q);
+}
+
+tfm_index unparse(tfm_index &wg_parse, Dict &dict, size_t w, size_t size) {
+    uint32_t *inverted_list = new uint32_t[wg_parse.L.size() - 1];
+    generate_ilist(inverted_list, wg_parse, dict.dwords);
+
+    uint32_t *sa_d = new uint32_t[dict.dsize];
+    int32_t *lcp_d = new int32_t[dict.dsize];
+    // separators s[i]=1 and with s[n-1]=0
+    // cout << dict.d << "\n" << dict.dsize << endl;;
+    gsacak(dict.d, sa_d, lcp_d, NULL, dict.dsize);
+    dict.d[0] = 0;
+
+    size_t s = get_untunneled_size(wg_parse, dict, w, sa_d, lcp_d, inverted_list);
+    int_vector<> L = compute_L(w, dict.d, dict.dsize, dict.end, inverted_list, wg_parse, dict.dwords, sa_d, lcp_d);
+    cout << s << " " << L.size() << endl;
+    bit_vector din(L.size() + 1, 1);
+    bit_vector dout(L.size() + 1, 1);
+
+    compute_degrees(wg_parse, dict, w, sa_d, lcp_d, din, dout);
+
+    tfm_index tfm(size, L, din, dout);
+    return tfm;
+}
+
 int main() {
-    size_t size = 9;
-    int_vector<> L = {5, 0, 1, 4, 2, 3, 4};
-    bit_vector in{1, 1, 1, 1, 1, 0, 1, 1};
-    bit_vector out{1, 1, 1, 0, 1, 1, 1, 1};
-
-    // cout << "L size: " << L.size() << "\tL width: " << (size_t)L.width() << endl;
-
-    tfm_index tfm(size, L, in, out);
-    // cout << untunnel(tfm) << endl;
-
-    string T = "#ABDACDAEDABDACDAEDAZ$";
-    // {#A, ABDA, ACDA, AEDA, AZ$}
-    // parse = [1, 2, 3, 4, 2, 3, 4, 5]
-    int w = 1;
+    string input = "GTAGGTGGGTTGGTAGGTGGGTTGGTTT";
+    size_t orig_size = input.size();
+    size_t w = 2;
+    // triggers = [GT, TC]
 
     Dict dict;
-    dict.dsize = 22;
-
-    uint8_t *tmp_var = (uint8_t *)malloc(10);
-    uint8_t tmp2[] = "#A\001ABDA\0ACDA\0AEDA\0AZ$\0";
-    strcpy((char *)tmp_var, (char *)tmp2);
-    dict.d = tmp_var;
-
+    dict.dsize = 33;
     dict.dwords = 5;
+    dict.d = (uint8_t *)malloc(dict.dsize);     // {2GT, GTAGGT, GTGGGT, GTTGGT, GTTT22}
+    dict.end = (uint64_t *)malloc(dict.dwords); // {3, 10, 17, 24, 31}
 
-    dict.end = (uint64_t *)malloc(10);
-    dict.end[0] = 2;
-    dict.end[1] = 7;
+    uint8_t d[] = "\002GT\001GTAGGT\001GTGGGT\001GTTGGT\001GTTT\002\002\001\000";
+    uint64_t end[] = {3, 10, 17, 24, 31};
 
-    uint32_t *sa;
-    int32_t *lcp;
-    uint32_t *ilist;
+    // parse = [1, 2, 3, 4, 2, 3, 4, 5, 0]
+    // bwt   = [5, 0, 1, 4, 2, 2, 3, 3, 4]
+    // L     = [5, 0, 1, 4, 2,    3,    4]
 
-    tmp(tfm, dict, w, sa, lcp, ilist);
+    size_t size = 9;
+    int_vector<> l = {5, 0, 1, 4, 2, 3,    4};
+    bit_vector    out{1, 1, 1, 0, 1, 1,    1, 1};
+    bit_vector     in{1, 1, 1,    1, 1, 0, 1, 1};
+
+    tfm_index tfm(size, l, in, out);
+
+    tfm_index unparsed = unparse(tfm, dict, w, orig_size);
+
+    cout << input << endl;
+    cout << untunnel(unparsed) << endl;
 }
