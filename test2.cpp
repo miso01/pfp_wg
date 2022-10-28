@@ -414,6 +414,9 @@ int main() {
 
     tfm_index unparsed = unparse(tfm, dict, w, orig_size);
 
+    for (uint i=0; i<unparsed.L.size(); i++) cout << (char)unparsed.L[i];
+    cout << '\n' << unparsed.dout << endl;
+    cout << unparsed.din << endl << endl;
     cout << input << endl;
     cout << untunnel(unparsed) << endl;
 }
