@@ -45,8 +45,10 @@ struct SeqId {
     uint8_t char2write; // char to be written (is the one preceeding the suffix)
 
     // constructor
-    SeqId(uint32_t i, int r, uint32_t *b, int8_t c)
-        : id(i), remaining(r), bwtpos(b) {
+    SeqId(uint32_t i, int r, uint32_t *b, int8_t c) {
+        id = i;
+        remaining = r;
+        bwtpos = b;
         char2write = c;
     }
 
@@ -56,11 +58,10 @@ struct SeqId {
         remaining--;
         bwtpos += 1;
         return remaining > 0;
-    }
-    bool operator<(const SeqId &a);
-};
+    };
 
-bool SeqId::operator<(const SeqId &a) { return *bwtpos > *(a.bwtpos); }
+    bool operator<(const SeqId &a) { return *bwtpos > *(a.bwtpos); };
+};
 
 uint8_t get_prev(int w, uint8_t *d, uint64_t *end, uint32_t seqid) {
     return d[end[seqid] - w - 1];
@@ -83,9 +84,7 @@ long binsearch(uint_t x, uint_t a[], long n) {
 }
 
 int_t getlen(uint_t p, uint_t eos[], long n, uint32_t *seqid) {
-    assert(p < eos[n - 1]);
     *seqid = binsearch(p, eos, n);
-    assert(eos[*seqid] > p); // distance between position p and the next $
     return eos[*seqid] - p;
 }
 
@@ -95,13 +94,30 @@ void tmp(tfm_index &wg, Dict &dict, size_t w, uint32_t *sa, int32_t *lcp, uint32
         if (dict.d[i] == '\002') dict.d[i] = '#';
     }
 
+    cout << "i\tsa[i]\tlcp[i]\tlen\tseqid\trank\tp_occ\tprev\tsuffix" << endl;
     for (size_t i=0; i<dict.dsize; i++) {
-        // uint32_t seqid = binsearch(sa_d[i], sa_d + 1, dict.dwords);
-        uint32_t seqid = 0;
-        // int32_t suffixLen = getlen(sa_d[i], sa_d + 1, dict.dwords, &seqid);
+        int32_t seqid = -1;
+        uint32_t len = 0;
+        char prev = ' ';
+        uint64_t parse_occ = 0;
+        int32_t rank = -1;
+        if (i >= dict.dwords + w + 1) {
+            seqid = binsearch(sa[i], sa + 1, dict.dwords);
+            len = *(sa + seqid + 1) - sa[i];
+            if (sa[i] != 0) prev = dict.d[sa[i] - 1];
+            else prev = 'T';
+            parse_occ = wg.C[seqid + 1] - wg.C[seqid];
+            rank = *(ilist + (wg.C[seqid] - 1));
+        }
+
         cout << i << "\t"
              << sa[i] << "\t"
+             << lcp[i] << "\t"
+             << len << "\t"
              << seqid << "\t"
+             << rank << "\t"
+             << parse_occ << "\t"
+             << prev << "\t"
              << dict.d + sa[i] << endl;
     }
 
@@ -109,23 +125,6 @@ void tmp(tfm_index &wg, Dict &dict, size_t w, uint32_t *sa, int32_t *lcp, uint32
         if (dict.d[i] == '$') dict.d[i] = '\001';
         if (dict.d[i] == '#') dict.d[i] = '\002';
     }
-
-    // seqid = binsearch(sa[i], eos, dwords);
-    //     int_t suffixLen = eos[seqid] - sa[i];
-
-    // uint32_t seqid;
-    // cout << dict.dwords + w + 1;
-    // for (uint64_t i = 0; i < dict.dsize; i++) {
-        // cout << dict.d + sa[i] << endl;
-        // int32_t suffixLen = getlen(sa[i], sa + 1, dict.dwords, &seqid);
-        // if (suffixLen <= (int32_t)w) continue;
-        // char prev = dict.d[sa[i] - 1];
-        // uint64_t parse_occ = wg.C[seqid + 1] - wg.C[seqid];
-        // uint32_t *rank = ilist + (wg.C[seqid] - 1);
-
-        // printf("%.*s\n", suffixLen, dict.d + sa[i]);
-        // cout << prev << "\t" << nextsuffixLen << "\n";
-    // }
 }
 
 size_t get_untunneled_size(tfm_index &tfmp, Dict &dict, size_t w, uint32_t *sa, int32_t *lcp, uint32_t *ilist) {
