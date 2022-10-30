@@ -307,78 +307,31 @@ inline uint8_t get_prev(int w, uint8_t *d, uint64_t *end, uint32_t seqid) {
     return d[end[seqid] - w - 1];
 }
 
-size_t get_untunneled_size(tfm_index &tfmp, Dict &dict, size_t w, uint_t *sa, int_t *lcp, uint32_t *ilist) {
+size_t get_untunneled_size(tfm_index &wg, Dict &dict, size_t w, uint32_t *sa) {
     size_t size = 0;
 
-    uint64_t next;
-    uint32_t seqid;
-    for (uint64_t i = dict.dwords + w + 1; i < dict.dsize; i = next) {
-        next = i + 1;
-        int_t suffixLen = getlen(sa[i], sa + 1, dict.dwords, &seqid);
-        if (suffixLen <= (int_t)w) continue;
+    int32_t seqid = -1;
+    uint32_t len = 0;
+    uint64_t parse_occ = 0;
+
+    for (uint64_t i = dict.dwords + w + 1; i < dict.dsize; i++) {
+        seqid = binsearch(sa[i], sa + 1, dict.dwords) + 1;
+
+        len = *(sa + seqid) - sa[i];
+        if (len <= (uint32_t)w) continue;
+
+        parse_occ = wg.C[seqid + 1] - wg.C[seqid];
 
         if (sa[i] == 0 || dict.d[sa[i] - 1] == EndOfWord) {
-            // ----- simple case: the suffix is a full word
-            uint32_t start = tfmp.C[seqid + 1];
-            uint32_t end = tfmp.C[seqid + 2];
-            for (uint32_t j = start; j < end; j++) {
-                if (tfmp.din[j] == 1) {
-                    uint32_t pos = tfmp.dout_select(tfmp.din_rank(j + 1));
-                    size++; pos++;
-                    while (tfmp.dout[pos] != 1) { size++; pos++; }
+            for (size_t j = 0; j < parse_occ; j++) {
+                if (wg.din[wg.C[seqid] + j] == 1) {
+                    uint32_t start = wg.dout_select(wg.din_rank(wg.C[seqid] + j));
+                    uint32_t end = wg.dout_select(wg.din_rank(wg.C[seqid] + j + 1));
+                    size += end - start;
                 }
             }
         } else {
-            // ----- hard case: there can be a group of equal suffixes starting
-            // at i save seqid and the corresponding char
-            vector<uint32_t> id2merge(1, seqid);
-            vector<uint8_t> char2write(1, dict.d[sa[i] - 1]);
-            while (next < dict.dsize && lcp[next] >= suffixLen) {
-                int_t nextsuffixLen = getlen(sa[next], sa + 1, dict.dwords, &seqid);
-                if (nextsuffixLen != suffixLen) break;
-                id2merge.push_back(seqid); // sequence to consider
-                char2write.push_back(dict.d[sa[next] - 1]); // corresponding char
-                next++;
-            }
-
-            size_t numwords = id2merge.size(); // numwords dictionary words contain the same suffix
-            bool samechar = true;
-            for (size_t i = 1; (i < numwords) && samechar; i++) {
-                samechar = (char2write[i - 1] == char2write[i]);
-            }
-
-            if (samechar) {
-                for (size_t i = 0; i < numwords; i++) {
-                    uint32_t s = id2merge[i] + 1;
-                    size += tfmp.C[s + 1] - tfmp.C[s];
-                }
-            } else {
-                // many words, many chars...
-                vector<SeqId> heap; // create heap
-                for (size_t i = 0; i < numwords; i++) {
-                    uint32_t s = id2merge[i] + 1;
-                    heap.push_back(SeqId(
-                        s,                          // letter from parse
-                        tfmp.C[s + 1] - tfmp.C[s],  // num of occ in parse
-                        ilist + (tfmp.C[s] - 1),    // ???
-                        char2write[i]               // previous chars
-                    ));
-                }
-                std::make_heap(heap.begin(), heap.end());
-                while (heap.size() > 0) {
-                    // output char for the top of the heap
-                    SeqId s = heap.front();
-                    pop_heap(heap.begin(), heap.end());
-                    heap.pop_back();
-
-                    size++;
-                    // if remaining positions, reinsert to heap
-                    if (s.next()) {
-                        heap.push_back(s);
-                        push_heap(heap.begin(), heap.end());
-                    }
-                }
-            }
+            size += parse_occ;
         }
     }
 
@@ -553,7 +506,7 @@ tfm_index unparse(tfm_index &wg_parse, Dict &dict, size_t w, size_t size) {
     gsacak(dict.d, sa_d, lcp_d, NULL, dict.dsize);
     dict.d[0] = 0;
 
-    size_t s = get_untunneled_size(wg_parse, dict, w, sa_d, lcp_d, inverted_list);
+    size_t s = get_untunneled_size(wg_parse, dict, w, sa_d);
     int_vector<> L = compute_L(w, dict.d, dict.dsize, dict.end, inverted_list, wg_parse, dict.dwords, sa_d, lcp_d);
     cout << s << " " << L.size() << endl;
     bit_vector din(L.size() + 1, 1);
