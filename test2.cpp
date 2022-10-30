@@ -102,12 +102,12 @@ void tmp(tfm_index &wg, Dict &dict, size_t w, uint32_t *sa, int32_t *lcp, uint32
         uint64_t parse_occ = 0;
         int32_t rank = -1;
         if (i >= dict.dwords + w + 1) {
-            seqid = binsearch(sa[i], sa + 1, dict.dwords);
-            len = *(sa + seqid + 1) - sa[i];
+            seqid = binsearch(sa[i], sa + 1, dict.dwords) + 1; // because seqid 0 is parse end symbol
+            len = *(sa + seqid) - sa[i];
             if (sa[i] != 0) prev = dict.d[sa[i] - 1];
             else prev = 'T';
             parse_occ = wg.C[seqid + 1] - wg.C[seqid];
-            rank = *(ilist + (wg.C[seqid] - 1));
+            rank = *(ilist + (wg.C[seqid-1] - 1));
         }
 
         cout << i << "\t"
@@ -138,14 +138,16 @@ size_t get_untunneled_size(tfm_index &tfmp, Dict &dict, size_t w, uint32_t *sa, 
         if (suffixLen <= (int32_t)w) continue;
 
         if (sa[i] == 0 || dict.d[sa[i] - 1] == EndOfWord) {
-            // ----- simple case: the suffix is a full word
+            // the suffix is a full word
             uint32_t start = tfmp.C[seqid + 1];
             uint32_t end = tfmp.C[seqid + 2];
             for (uint32_t j = start; j < end; j++) {
                 if (tfmp.din[j] == 1) {
                     uint32_t pos = tfmp.dout_select(tfmp.din_rank(j + 1));
                     size++; pos++;
-                    while (tfmp.dout[pos] != 1) { size++; pos++; }
+                    while (tfmp.dout[pos] != 1) {
+                        size++; pos++;
+                    }
                 }
             }
         } else {
