@@ -106,6 +106,7 @@ void print_table(tfm_index &wg, Dict &dict, size_t w, uint32_t *sa, int32_t *lcp
         uint64_t parse_occ = wg.C[seqid + 1] - wg.C[seqid];
 
         string prev = "";
+        vector<int32_t> ranks;
 
         if (sa[i] == 0 || dict.d[sa[i] - 1] == '$') {
             uint32_t start = wg.C[seqid];
@@ -123,16 +124,21 @@ void print_table(tfm_index &wg, Dict &dict, size_t w, uint32_t *sa, int32_t *lcp
             }
         } else {
             prev += dict.d[sa[i] - 1];
-        }
 
-        int32_t rank = ilist[wg.C[seqid-1] - 1];
+            ranks.clear();
+            uint32_t start = wg.C[seqid];
+            for (uint32_t j = start; j < start + parse_occ; j++) {
+                ranks.push_back(ilist[j - 1]);
+            }
+        }
 
         cout << i << "\t"
              << sa[i] << "\t"
              << lcp[i] << "\t"
              << len << "\t"
-             << seqid << "\t"
-             << rank << "\t"
+             << seqid << "\t[";
+        for (int32_t x: ranks) cout << x;
+        cout << "]\t"
              << parse_occ << "\t"
              << prev << "\t"
              << dict.d + sa[i] << endl;
