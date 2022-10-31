@@ -89,6 +89,80 @@ int_t getlen(uint_t p, uint_t eos[], long n, uint32_t *seqid) {
     return eos[*seqid] - p;
 }
 
+// struct row_t {
+//     bool is_phrase;
+//     uint32_t id;
+//     uint32_t len;
+//     uint32_t n_occs;
+//     uint32_t *ranks;
+//     uint32_t n_prevs;
+//     uint32_t *prevs;
+// };
+
+// row_t get_row(uint32_t i, tfm_index &wg, uint32_t *ilist, Dict &dict, uint32_t *sa, int32_t *lcp) {
+//     row_t row;
+//     row.id = binsearch(sa[i], sa + 1, dict.dwords) + 1; // because seqid 0 is parse end symbol
+//     row.len = sa[row.id] - sa[i];
+
+//     uint32_t start = wg.C[row.id];
+//     row.n_occs = wg.C[row.id + 1] - start;
+
+//     string prev = "";
+//     vector<int32_t> ranks;
+
+//     if (sa[i] == 0 || dict.d[sa[i] - 1] == '$') {
+//         row.is_phrase = true;
+
+//         for (uint32_t j = start; j < start + row.n_occs; j++) {
+//             // if (wg.din[j] == 1) {
+//             //     uint32_t start = wg.dout_select(wg.din_rank(j));
+//             //     uint32_t end = wg.dout_select(wg.din_rank(j + 1));
+//             //     size += end - start;
+//             // }
+//             if (wg.din[j] == 1) {
+//                 uint32_t pos = wg.dout_select(wg.din_rank(j + 1));
+//                 do {
+//                     if (wg.L[pos] == 0) pos = 0;
+//                     uint32_t act_phrase = wg.L[pos];    // F -> L
+
+//                     prev += dict.d[sa[act_phrase] - w - 1];
+//                     pos++;
+//                 } while (wg.dout[pos] == 0);
+//             }
+//         }
+//     } else {
+//         prev += dict.d[sa[i] - 1];
+
+//         ranks.clear();
+//         uint32_t start = wg.C[row.id];
+//         for (uint32_t j = start; j < start + row.n_occs; j++) {
+//             ranks.push_back(ilist[j - 1]);
+//         }
+//     }
+//     return row;
+// }
+
+// void untunnel_2(tfm_index &wg, Dict &dict, size_t w, uint32_t *sa, int32_t *lcp, uint32_t *ilist) {
+//     uint32_t n_special = dict.dwords + w + 1;
+//     for (size_t i = n_special; i < dict.dsize; i++) {
+//         row row_i = get_row(i, wg, ilist, dict, sa, lcp);
+//         if (row_i.len <= w) continue;
+//         if (row_i.is_phrase) {
+//             for (size_t j = 0; j < row_i.n_prevs; j++) { L += row_i.prevs[j]; }
+//             dout += 1;
+//             for (size_t j = 1; j < row_i.n_prevs; j++) { dout += 0; }
+//             din += 1;
+//             for (size_t j = 1; j < row_i.p_occ; j++) { din += 0; }
+//         } else {
+//             if (lcp[i+1] >= row_i.len) {
+//                 for (size_t j = 0; j < row_i.p_occ; j++) {
+//                     ...
+//                 }
+//             }
+//         }
+//     }
+// }
+
 void print_table(tfm_index &wg, Dict &dict, size_t w, uint32_t *sa, int32_t *lcp, uint32_t *ilist) {
     // make special symbols readable
     for (size_t i=0; i<dict.dsize; i++) {
