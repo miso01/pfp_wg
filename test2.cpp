@@ -1,5 +1,6 @@
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
@@ -88,27 +89,43 @@ int_t getlen(uint_t p, uint_t eos[], long n, uint32_t *seqid) {
     return eos[*seqid] - p;
 }
 
-void tmp(tfm_index &wg, Dict &dict, size_t w, uint32_t *sa, int32_t *lcp, uint32_t *ilist) {
+void print_table(tfm_index &wg, Dict &dict, size_t w, uint32_t *sa, int32_t *lcp, uint32_t *ilist) {
+    // make special symbols readable
     for (size_t i=0; i<dict.dsize; i++) {
         if (dict.d[i] == '\001') dict.d[i] = '$';
         if (dict.d[i] == '\002') dict.d[i] = '#';
     }
 
     cout << "i\tsa[i]\tlcp[i]\tlen\tseqid\trank\tp_occ\tprev\tsuffix" << endl;
-    for (size_t i=0; i<dict.dsize; i++) {
-        int32_t seqid = -1;
-        uint32_t len = 0;
-        char prev = ' ';
-        uint64_t parse_occ = 0;
-        int32_t rank = -1;
-        if (i >= dict.dwords + w + 1) {
-            seqid = binsearch(sa[i], sa + 1, dict.dwords) + 1; // because seqid 0 is parse end symbol
-            len = *(sa + seqid) - sa[i];
-            if (sa[i] != 0) prev = dict.d[sa[i] - 1];
-            else prev = 'T';
-            parse_occ = wg.C[seqid + 1] - wg.C[seqid];
-            rank = *(ilist + (wg.C[seqid-1] - 1));
+    uint32_t n_special = dict.dwords + w + 1; // dwords*$, w*# and 1*\000
+    for (size_t i = n_special; i < dict.dsize; i++) {
+        int32_t seqid = binsearch(sa[i], sa + 1, dict.dwords) + 1; // because seqid 0 is parse end symbol
+        size_t len = sa[seqid] - sa[i];
+        if (len <= w) continue;
+
+        uint64_t parse_occ = wg.C[seqid + 1] - wg.C[seqid];
+
+        string prev = "";
+
+        if (sa[i] == 0 || dict.d[sa[i] - 1] == '$') {
+            uint32_t start = wg.C[seqid];
+            for (uint32_t j = start; j < start + parse_occ; j++) {
+                if (wg.din[j] == 1) {
+                    uint32_t pos = wg.dout_select(wg.din_rank(j + 1));
+                    do {
+                        if (wg.L[pos] == 0) pos = 0;
+                        uint32_t act_phrase = wg.L[pos];    // F -> L
+
+                        prev += dict.d[sa[act_phrase] - w - 1];
+                        pos++;
+                    } while (wg.dout[pos] == 0);
+                }
+            }
+        } else {
+            prev += dict.d[sa[i] - 1];
         }
+
+        int32_t rank = ilist[wg.C[seqid-1] - 1];
 
         cout << i << "\t"
              << sa[i] << "\t"
@@ -121,6 +138,7 @@ void tmp(tfm_index &wg, Dict &dict, size_t w, uint32_t *sa, int32_t *lcp, uint32
              << dict.d + sa[i] << endl;
     }
 
+    // make special symbols special
     for (size_t i=0; i<dict.dsize; i++) {
         if (dict.d[i] == '$') dict.d[i] = '\001';
         if (dict.d[i] == '#') dict.d[i] = '\002';
@@ -323,11 +341,11 @@ tfm_index unparse(tfm_index &wg_parse, Dict &dict, size_t w, size_t size) {
     // cout << dict.d << "\n" << dict.dsize << endl;;
     gsacak(dict.d, sa_d, lcp_d, NULL, dict.dsize);
 
-    tmp(wg_parse, dict, w, sa_d, lcp_d, inverted_list);
+    print_table(wg_parse, dict, w, sa_d, lcp_d, inverted_list);
 
     size_t s = get_untunneled_size(wg_parse, dict, w, sa_d);
     int_vector<> L = compute_L(w, dict.d, dict.dsize, dict.end, inverted_list, wg_parse, dict.dwords, sa_d, lcp_d);
-    cout << s << " " << L.size() << endl;
+    cout << "\n" << s << " " << L.size() << endl;
     bit_vector din(L.size() + 1, 1);
     bit_vector dout(L.size() + 1, 1);
 
@@ -335,6 +353,15 @@ tfm_index unparse(tfm_index &wg_parse, Dict &dict, size_t w, size_t size) {
 
     tfm_index tfm(size, L, din, dout);
     return tfm;
+}
+
+void print_wg(tfm_index &wg) {
+    for (uint i=0; i < wg.L.size(); i++)
+        cout << (char)wg.L[i];
+    cout << "\n";
+
+    cout << wg.dout << endl;
+    cout << wg.din << endl << endl;
 }
 
 int main() {
@@ -367,9 +394,9 @@ int main() {
 
     tfm_index unparsed = unparse(tfm, dict, w, orig_size);
 
-    for (uint i=0; i<unparsed.L.size(); i++) cout << (char)unparsed.L[i];
-    cout << '\n' << unparsed.dout << endl;
-    cout << unparsed.din << endl << endl;
+    print_wg(tfm);
+    print_wg(unparsed);
+
     cout << input << endl;
     cout << untunnel(unparsed) << endl;
 }
