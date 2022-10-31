@@ -509,8 +509,8 @@ tfm_index unparse(tfm_index &wg_parse, Dict &dict, size_t w, size_t size) {
     size_t s = get_untunneled_size(wg_parse, dict, w, sa_d);
     int_vector<> L = compute_L(w, dict.d, dict.dsize, dict.end, inverted_list, wg_parse, dict.dwords, sa_d, lcp_d);
     cout << s << " " << L.size() << endl;
-    bit_vector din(L.size() + 1, 1);
-    bit_vector dout(L.size() + 1, 1);
+    bit_vector din(s + 1, 1);
+    bit_vector dout(s + 1, 1);
 
     compute_degrees(wg_parse, dict, w, sa_d, lcp_d, din, dout);
 
