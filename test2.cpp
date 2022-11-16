@@ -149,7 +149,25 @@ long binsearch(uint_t x, uint_t a[], long n) {
 //     }
 // }
 
-void print_table(tfm_index &wg, Dict &dict, size_t w, uint32_t *sa, int32_t *lcp, uint32_t *ilist) {
+void generate_ilist(uint32_t *ilist, tfm_index &tfmp, uint64_t dwords) {
+    vector<vector<uint32_t>> phrase_sources(dwords);
+    for (uint64_t i = 0; i < tfmp.L.size(); i++) {
+        uint32_t act_char = tfmp.L[i];
+        if (act_char == 0)
+            continue;
+        phrase_sources[act_char - 1].push_back(i);
+    }
+    uint64_t cnt = 0;
+    for (uint64_t i = 0; i < phrase_sources.size(); i++) {
+        for (int j = 0; j < (int)phrase_sources[i].size(); j++)
+            ilist[cnt++] = phrase_sources[i][j];
+    }
+}
+
+void print_table(tfm_index &wg, Dict &dict, size_t w, uint32_t *sa, int32_t *lcp) {
+    uint32_t *ilist = new uint32_t[wg.L.size() - 1];
+    generate_ilist(ilist, wg, dict.dwords);
+
     // make special symbols readable
     for (size_t i=0; i<dict.dsize; i++) {
         if (dict.d[i] == '\001') dict.d[i] = '$';
@@ -219,68 +237,64 @@ size_t get_untunneled_size(tfm_index &wg, Dict &dict, size_t w, uint32_t *sa) {
     uint64_t parse_occ = 0;
 
     for (uint64_t i = dict.dwords + w + 1; i < dict.dsize; i++) {
+        // sa + 1 should be dict.end
         seqid = binsearch(sa[i], sa + 1, dict.dwords) + 1;
 
-        len = *(sa + seqid) - sa[i];
+        // sa[seqid] is the length of the phrase seqid, check table
+        len = sa[seqid] - sa[i];
         if (len <= (uint32_t)w) continue;
 
         parse_occ = wg.C[seqid + 1] - wg.C[seqid];
-
-        if (sa[i] == 0 || dict.d[sa[i] - 1] == EndOfWord) {
-            // for (size_t j = 0; j < parse_occ; j++) {
-            //     if (wg.din[wg.C[seqid] + j] == 1) {
-            //         uint32_t start = wg.dout_select(wg.din_rank(wg.C[seqid] + j));
-            //         uint32_t end = wg.dout_select(wg.din_rank(wg.C[seqid] + j + 1));
-            //         size += end - start;
-            //     }
-            // }
-            size += parse_occ;
-        } else {
-            size += parse_occ;
-        }
+        size += parse_occ;
     }
 
     return size;
 }
 
-int_vector<> compute_L(size_t w, uint8_t *d, long dsize, uint64_t *end_to_phrase, uint32_t *ilist, tfm_index &tfmp, long dwords, uint_t *sa, int_t *lcp) {
+// int_vector<> compute_L(size_t w, uint8_t *d, long dsize, uint64_t *end_to_phrase, uint32_t *ilist, tfm_index &tfmp, long dwords, uint_t *sa, int_t *lcp) {
+void compute_L(tfm_index &tfm, Dict dict, size_t w, uint32_t *sa, int32_t *lcp, int_vector<> &L) {
+    uint32_t *ilist = new uint32_t[tfm.L.size() - 1];
+    generate_ilist(ilist, tfm, dict.dwords);
+
     uint_t *eos = sa + 1;
-    vector<char> out{};
+    size_t p = 0;
 
     long next;
     uint32_t seqid;
-    for (long i = dwords + w + 1; i < dsize; i = next) {
+    for (long i = dict.dwords + w + 1; i < dict.dsize; i = next) {
         next = i + 1;
-        seqid = binsearch(sa[i], eos, dwords);
+        seqid = binsearch(sa[i], eos, dict.dwords);
         int_t suffixLen = eos[seqid] - sa[i];
         if (suffixLen <= (int_t)w) continue;
 
-        if (sa[i] == 0 || d[sa[i] - 1] == EndOfWord) {
+        if (sa[i] == 0 || dict.d[sa[i] - 1] == EndOfWord) {
             // ----- simple case: the suffix is a full word
-            uint32_t start = tfmp.C[seqid + 1];
-            uint32_t end = tfmp.C[seqid + 2];
+            uint32_t start = tfm.C[seqid + 1];
+            uint32_t end = tfm.C[seqid + 2];
             for (uint32_t j = start; j < end; j++) {
-                if (tfmp.din[j] == 1) {
-                    uint32_t pos = tfmp.dout_select(tfmp.din_rank(j + 1));
+                if (tfm.din[j] == 1) {
+                    uint32_t pos = tfm.dout_select(tfm.din_rank(j + 1));
                     do {
-                        if (tfmp.L[pos] == 0) pos = 0;
-                        uint32_t act_phrase = tfmp.L[pos] - 1;
-                        uint8_t char_to_write = d[end_to_phrase[act_phrase] - w - 1];
-                        out.push_back(char_to_write);
-                    } while (tfmp.dout[++pos] != 1);
+                        if (tfm.L[pos] == 0) pos = 0;
+                        uint32_t act_phrase = tfm.L[pos] - 1;
+                        uint8_t char_to_write = dict.d[dict.end[act_phrase] - w - 1];
+                        // out.push_back(char_to_write);
+                        L[p] = char_to_write;
+                        p++;
+                    } while (tfm.dout[++pos] != 1);
                 }
             }
         } else {
             // ----- hard case: there can be a group of equal suffixes starting
             // at i save seqid and the corresponding char
             vector<uint32_t> id2merge(1, seqid);
-            vector<uint8_t> char2write(1, d[sa[i] - 1]);
-            while (next < dsize && lcp[next] >= suffixLen) {
-                seqid = binsearch(sa[next], eos, dwords);
+            vector<uint8_t> char2write(1, dict.d[sa[i] - 1]);
+            while (next < dict.dsize && lcp[next] >= suffixLen) {
+                seqid = binsearch(sa[next], eos, dict.dwords);
                 int_t nextsuffixLen = eos[seqid] - sa[next];
                 if (nextsuffixLen != suffixLen) break;
                 id2merge.push_back(seqid); // sequence to consider
-                char2write.push_back(d[sa[next] - 1]); // corresponding char
+                char2write.push_back(dict.d[sa[next] - 1]); // corresponding char
                 next++;
             }
 
@@ -293,8 +307,10 @@ int_vector<> compute_L(size_t w, uint8_t *d, long dsize, uint64_t *end_to_phrase
             if (samechar) {
                 for (size_t i = 0; i < numwords; i++) {
                     uint32_t s = id2merge[i] + 1;
-                    for (uint64_t j = tfmp.C[s]; j < tfmp.C[s + 1]; j++) {
-                        out.push_back(char2write[0]);
+                    for (uint64_t j = tfm.C[s]; j < tfm.C[s + 1]; j++) {
+                        // out.push_back(char2write[0]);
+                        L[p] = char2write[0];
+                        p++;
                     }
                 }
             } else {
@@ -303,7 +319,7 @@ int_vector<> compute_L(size_t w, uint8_t *d, long dsize, uint64_t *end_to_phrase
                 for (size_t i = 0; i < numwords; i++) {
                     uint32_t s = id2merge[i] + 1;
                     heap.push_back(SeqId(
-                        s, tfmp.C[s + 1] - tfmp.C[s], ilist + (tfmp.C[s] - 1),
+                        s, tfm.C[s + 1] - tfm.C[s], ilist + (tfm.C[s] - 1),
                         char2write[i]
                     ));
                 }
@@ -311,7 +327,9 @@ int_vector<> compute_L(size_t w, uint8_t *d, long dsize, uint64_t *end_to_phrase
                 while (heap.size() > 0) {
                     // output char for the top of the heap
                     SeqId s = heap.front();
-                    out.push_back(s.char2write);
+                    // out.push_back(s.char2write);
+                    L[p] = s.char2write;
+                    p++;
                     // remove top
                     pop_heap(heap.begin(), heap.end());
                     heap.pop_back();
@@ -324,11 +342,7 @@ int_vector<> compute_L(size_t w, uint8_t *d, long dsize, uint64_t *end_to_phrase
             }
         }
     }
-
-    int_vector<> L(out.size(), 0);
-    for (size_t i=0; i<L.size(); i++) { L[i] = out[i]; }
-
-    return L;
+    return;
 }
 
 void compute_degrees(
@@ -387,24 +401,7 @@ void compute_degrees(
     dout.resize(q);
 }
 
-void generate_ilist(uint32_t *ilist, tfm_index &tfmp, uint64_t dwords) {
-    vector<vector<uint32_t>> phrase_sources(dwords);
-    for (uint64_t i = 0; i < tfmp.L.size(); i++) {
-        uint32_t act_char = tfmp.L[i];
-        if (act_char == 0)
-            continue;
-        phrase_sources[act_char - 1].push_back(i);
-    }
-    uint64_t cnt = 0;
-    for (uint64_t i = 0; i < phrase_sources.size(); i++) {
-        for (int j = 0; j < (int)phrase_sources[i].size(); j++)
-            ilist[cnt++] = phrase_sources[i][j];
-    }
-}
-
 tfm_index unparse(tfm_index &wg_parse, Dict &dict, size_t w, size_t size) {
-    uint32_t *inverted_list = new uint32_t[wg_parse.L.size() - 1];
-    generate_ilist(inverted_list, wg_parse, dict.dwords);
 
     uint32_t *sa_d = new uint32_t[dict.dsize];
     int32_t *lcp_d = new int32_t[dict.dsize];
@@ -412,14 +409,13 @@ tfm_index unparse(tfm_index &wg_parse, Dict &dict, size_t w, size_t size) {
     // cout << dict.d << "\n" << dict.dsize << endl;;
     gsacak(dict.d, sa_d, lcp_d, NULL, dict.dsize);
 
-    print_table(wg_parse, dict, w, sa_d, lcp_d, inverted_list);
-
     size_t s = get_untunneled_size(wg_parse, dict, w, sa_d);
-    int_vector<> L = compute_L(w, dict.d, dict.dsize, dict.end, inverted_list, wg_parse, dict.dwords, sa_d, lcp_d);
-    cout << "\n" << s << " " << L.size() << endl;
-    bit_vector din(L.size() + 1, 1);
-    bit_vector dout(L.size() + 1, 1);
+    int_vector<> L(s);
+    bit_vector din(s + 1, 1);
+    bit_vector dout(s + 1, 1);
 
+    print_table(    wg_parse, dict, w, sa_d, lcp_d);
+    compute_L(      wg_parse, dict, w, sa_d, lcp_d, L);
     compute_degrees(wg_parse, dict, w, sa_d, lcp_d, din, dout);
 
     tfm_index tfm(size, L, din, dout);
