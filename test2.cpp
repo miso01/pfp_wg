@@ -20,10 +20,10 @@ using namespace std;
 using namespace sdsl;
 
 struct Dict {
-    uint8_t *d; // pointer to the dictionary
-    uint64_t *end; // end[i] is the index of the ending symbol of the i-th phrase
-    uint64_t dsize;  // dicionary size in symbols
-    uint64_t dwords; // the number of phrases of the dicionary
+    uint8_t  *d;        // pointer to the dictionary
+    uint64_t *end;      // end[i] is the index of the ending symbol of the i-th phrase
+    uint64_t dsize;     // dicionary size in symbols
+    uint64_t dwords;    // the number of phrases of the dicionary
 };
 
 string untunnel(tfm_index &tfm) {
@@ -64,29 +64,15 @@ struct SeqId {
     bool operator<(const SeqId &a) { return *bwtpos > *(a.bwtpos); };
 };
 
-uint8_t get_prev(int w, uint8_t *d, uint64_t *end, uint32_t seqid) {
-    return d[end[seqid] - w - 1];
-}
-
 long binsearch(uint_t x, uint_t a[], long n) {
     long lo = 0;
     long hi = n - 1;
     while (hi > lo) {
-        assert(((lo == 0) || x > a[lo - 1]) && x < a[hi]);
         int mid = (lo + hi) / 2;
-        assert(x != a[mid]); // x is not in a[]
-        if (x < a[mid])
-            hi = mid;
-        else
-            lo = mid + 1;
+        if (x < a[mid]) hi = mid;
+        else lo = mid + 1;
     }
-    assert(((hi == 0) || x > a[hi - 1]) && x < a[hi]);
     return hi;
-}
-
-int_t getlen(uint_t p, uint_t eos[], long n, uint32_t *seqid) {
-    *seqid = binsearch(p, eos, n);
-    return eos[*seqid] - p;
 }
 
 // struct row_t {
@@ -241,13 +227,14 @@ size_t get_untunneled_size(tfm_index &wg, Dict &dict, size_t w, uint32_t *sa) {
         parse_occ = wg.C[seqid + 1] - wg.C[seqid];
 
         if (sa[i] == 0 || dict.d[sa[i] - 1] == EndOfWord) {
-            for (size_t j = 0; j < parse_occ; j++) {
-                if (wg.din[wg.C[seqid] + j] == 1) {
-                    uint32_t start = wg.dout_select(wg.din_rank(wg.C[seqid] + j));
-                    uint32_t end = wg.dout_select(wg.din_rank(wg.C[seqid] + j + 1));
-                    size += end - start;
-                }
-            }
+            // for (size_t j = 0; j < parse_occ; j++) {
+            //     if (wg.din[wg.C[seqid] + j] == 1) {
+            //         uint32_t start = wg.dout_select(wg.din_rank(wg.C[seqid] + j));
+            //         uint32_t end = wg.dout_select(wg.din_rank(wg.C[seqid] + j + 1));
+            //         size += end - start;
+            //     }
+            // }
+            size += parse_occ;
         } else {
             size += parse_occ;
         }
@@ -264,7 +251,8 @@ int_vector<> compute_L(size_t w, uint8_t *d, long dsize, uint64_t *end_to_phrase
     uint32_t seqid;
     for (long i = dwords + w + 1; i < dsize; i = next) {
         next = i + 1;
-        int_t suffixLen = getlen(sa[i], eos, dwords, &seqid);
+        seqid = binsearch(sa[i], eos, dwords);
+        int_t suffixLen = eos[seqid] - sa[i];
         if (suffixLen <= (int_t)w) continue;
 
         if (sa[i] == 0 || d[sa[i] - 1] == EndOfWord) {
@@ -277,7 +265,7 @@ int_vector<> compute_L(size_t w, uint8_t *d, long dsize, uint64_t *end_to_phrase
                     do {
                         if (tfmp.L[pos] == 0) pos = 0;
                         uint32_t act_phrase = tfmp.L[pos] - 1;
-                        uint8_t char_to_write = get_prev(w, d, end_to_phrase, act_phrase);
+                        uint8_t char_to_write = d[end_to_phrase[act_phrase] - w - 1];
                         out.push_back(char_to_write);
                     } while (tfmp.dout[++pos] != 1);
                 }
@@ -288,7 +276,8 @@ int_vector<> compute_L(size_t w, uint8_t *d, long dsize, uint64_t *end_to_phrase
             vector<uint32_t> id2merge(1, seqid);
             vector<uint8_t> char2write(1, d[sa[i] - 1]);
             while (next < dsize && lcp[next] >= suffixLen) {
-                int_t nextsuffixLen = getlen(sa[next], eos, dwords, &seqid);
+                seqid = binsearch(sa[next], eos, dwords);
+                int_t nextsuffixLen = eos[seqid] - sa[next];
                 if (nextsuffixLen != suffixLen) break;
                 id2merge.push_back(seqid); // sequence to consider
                 char2write.push_back(d[sa[next] - 1]); // corresponding char
@@ -358,7 +347,8 @@ void compute_degrees(
     uint32_t seqid;
     for (long i = dwords + w + 1; i < dsize; i = next) {
         next = i + 1;
-        int32_t suffixLen = getlen(sa[i], eos, dwords, &seqid);
+        seqid = binsearch(sa[i], eos, dwords);
+        int32_t suffixLen = eos[seqid] - sa[i];
         if (suffixLen <= (int32_t)w) continue;
 
         if (sa[i] == 0 || d[sa[i] - 1] == EndOfWord) {
@@ -379,7 +369,8 @@ void compute_degrees(
             // at i save seqid and the corresponding char
             int bits_to_write = tfmp.C[seqid + 2] - tfmp.C[seqid + 1];
             while (next < dsize && lcp[next] >= suffixLen) {
-                int32_t nextsuffixLen = getlen(sa[next], eos, dwords, &seqid);
+                seqid = binsearch(sa[next], eos, dwords);
+                int32_t nextsuffixLen = eos[seqid] - sa[next];
                 if (nextsuffixLen != suffixLen) break;
                 bits_to_write += tfmp.C[seqid + 2] - tfmp.C[seqid + 1];
                 next++;

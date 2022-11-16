@@ -307,6 +307,37 @@ inline uint8_t get_prev(int w, uint8_t *d, uint64_t *end, uint32_t seqid) {
     return d[end[seqid] - w - 1];
 }
 
+// size_t get_untunneled_size(tfm_index &wg, Dict &dict, size_t w, uint32_t *sa) {
+//     size_t size = 0;
+
+//     int32_t seqid = -1;
+//     uint32_t len = 0;
+//     uint64_t parse_occ = 0;
+
+//     for (uint64_t i = dict.dwords + w + 1; i < dict.dsize; i++) {
+//         seqid = binsearch(sa[i], sa + 1, dict.dwords) + 1;
+
+//         len = *(sa + seqid) - sa[i];
+//         if (len <= (uint32_t)w) continue;
+
+//         parse_occ = wg.C[seqid + 1] - wg.C[seqid];
+
+//         if (sa[i] == 0 || dict.d[sa[i] - 1] == EndOfWord) {
+//             for (size_t j = 0; j < parse_occ; j++) {
+//                 if (wg.din[wg.C[seqid] + j] == 1) {
+//                     uint32_t start = wg.dout_select(wg.din_rank(wg.C[seqid] + j));
+//                     uint32_t end = wg.dout_select(wg.din_rank(wg.C[seqid] + j + 1));
+//                     size += end - start;
+//                 }
+//             }
+//         } else {
+//             size += parse_occ;
+//         }
+//     }
+
+//     return size;
+// }
+
 size_t get_untunneled_size(tfm_index &wg, Dict &dict, size_t w, uint32_t *sa) {
     size_t size = 0;
 
@@ -323,13 +354,14 @@ size_t get_untunneled_size(tfm_index &wg, Dict &dict, size_t w, uint32_t *sa) {
         parse_occ = wg.C[seqid + 1] - wg.C[seqid];
 
         if (sa[i] == 0 || dict.d[sa[i] - 1] == EndOfWord) {
-            for (size_t j = 0; j < parse_occ; j++) {
-                if (wg.din[wg.C[seqid] + j] == 1) {
-                    uint32_t start = wg.dout_select(wg.din_rank(wg.C[seqid] + j));
-                    uint32_t end = wg.dout_select(wg.din_rank(wg.C[seqid] + j + 1));
-                    size += end - start;
-                }
-            }
+            // for (size_t j = 0; j < parse_occ; j++) {
+            //     if (wg.din[wg.C[seqid] + j] == 1) {
+            //         uint32_t start = wg.dout_select(wg.din_rank(wg.C[seqid] + j));
+            //         uint32_t end = wg.dout_select(wg.din_rank(wg.C[seqid] + j + 1));
+            //         size += end - start;
+            //     }
+            // }
+            size += parse_occ;
         } else {
             size += parse_occ;
         }
@@ -694,6 +726,15 @@ tfm_index construct_tfm_index(vector<uint64_t> &bwt) {
     return tfm_index;
 }
 
+void print_wg(tfm_index &wg) {
+    for (uint i=0; i < wg.L.size(); i++)
+        cout << wg.L[i] << " ";
+    cout << "\n";
+
+    cout << wg.dout << endl;
+    cout << wg.din << endl << endl;
+}
+
 int main(int argc, char **argv) {
     Args arg = parse_args(argc, argv);
 
@@ -703,6 +744,7 @@ int main(int argc, char **argv) {
     pf_parse(arg.input, arg.w, arg.p, parse, dict, &size);
     vector<uint64_t> bwt = compute_bwt(parse);
     tfm_index tfm = construct_tfm_index(bwt);
+    print_wg(tfm);
     tfm_index unparsed = unparse(tfm, dict, arg.w, size);
 
     store_to_file(unparsed, arg.output);
