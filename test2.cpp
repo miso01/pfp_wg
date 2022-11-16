@@ -75,58 +75,58 @@ long binsearch(uint_t x, uint_t a[], long n) {
     return hi;
 }
 
-// struct row_t {
-//     bool is_phrase;
-//     uint32_t id;
-//     uint32_t len;
-//     uint32_t n_occs;
-//     uint32_t *ranks;
-//     uint32_t n_prevs;
-//     uint32_t *prevs;
-// };
+struct row_t {
+    bool is_phrase;
+    uint32_t id;
+    uint32_t len;
+    uint32_t id_in;
+    uint32_t id_out;
+    uint32_t n_occs;
+    uint32_t *ranks;
+    uint32_t n_prevs;
+    uint32_t *prevs;
+};
 
-// row_t get_row(uint32_t i, tfm_index &wg, uint32_t *ilist, Dict &dict, uint32_t *sa, int32_t *lcp) {
-//     row_t row;
-//     row.id = binsearch(sa[i], sa + 1, dict.dwords) + 1; // because seqid 0 is parse end symbol
-//     row.len = sa[row.id] - sa[i];
+row_t get_row(uint32_t i, tfm_index &wg, Dict &dict, size_t w, uint32_t *sa, int32_t *lcp, uint32_t *ilist) {
+    row_t row;
+    row.id = binsearch(sa[i], sa + 1, dict.dwords) + 1; // +1 because seqid 0 is parse end symbol
+    row.len = sa[row.id] - sa[i];
 
-//     uint32_t start = wg.C[row.id];
-//     row.n_occs = wg.C[row.id + 1] - start;
+    uint32_t start = wg.C[row.id];
 
-//     string prev = "";
-//     vector<int32_t> ranks;
+    row.id_in = wg.din_select(row.id + 2) - wg.din_select(row.id + 1);
+    row.id_out = wg.dout_select(row.id + 2) - wg.dout_select(row.id + 1);
+    row.is_phrase = false;
 
-//     if (sa[i] == 0 || dict.d[sa[i] - 1] == '$') {
-//         row.is_phrase = true;
+    string prev = "";
+    vector<int32_t> ranks;
 
-//         for (uint32_t j = start; j < start + row.n_occs; j++) {
-//             // if (wg.din[j] == 1) {
-//             //     uint32_t start = wg.dout_select(wg.din_rank(j));
-//             //     uint32_t end = wg.dout_select(wg.din_rank(j + 1));
-//             //     size += end - start;
-//             // }
-//             if (wg.din[j] == 1) {
-//                 uint32_t pos = wg.dout_select(wg.din_rank(j + 1));
-//                 do {
-//                     if (wg.L[pos] == 0) pos = 0;
-//                     uint32_t act_phrase = wg.L[pos];    // F -> L
+    if (sa[i] == 0 || dict.d[sa[i] - 1] == '$') {
+        row.is_phrase = true;
 
-//                     prev += dict.d[sa[act_phrase] - w - 1];
-//                     pos++;
-//                 } while (wg.dout[pos] == 0);
-//             }
-//         }
-//     } else {
-//         prev += dict.d[sa[i] - 1];
+        for (uint32_t j = start; j < start + row.n_occs; j++) {
+            if (wg.din[j] == 1) {
+                uint32_t pos = wg.dout_select(wg.din_rank(j + 1));
+                do {
+                    if (wg.L[pos] == 0) pos = 0;
+                    uint32_t act_phrase = wg.L[pos];    // F -> L
 
-//         ranks.clear();
-//         uint32_t start = wg.C[row.id];
-//         for (uint32_t j = start; j < start + row.n_occs; j++) {
-//             ranks.push_back(ilist[j - 1]);
-//         }
-//     }
-//     return row;
-// }
+                    prev += dict.d[sa[act_phrase] - w - 1];
+                    pos++;
+                } while (wg.dout[pos] == 0);
+            }
+        }
+    } else {
+        prev += dict.d[sa[i] - 1];
+
+        ranks.clear();
+        uint32_t start = wg.C[row.id];
+        for (uint32_t j = start; j < start + row.n_occs; j++) {
+            ranks.push_back(ilist[j - 1]);
+        }
+    }
+    return row;
+}
 
 // void untunnel_2(tfm_index &wg, Dict &dict, size_t w, uint32_t *sa, int32_t *lcp, uint32_t *ilist) {
 //     uint32_t n_special = dict.dwords + w + 1;
@@ -174,21 +174,18 @@ void print_table(tfm_index &wg, Dict &dict, size_t w, uint32_t *sa, int32_t *lcp
         if (dict.d[i] == '\002') dict.d[i] = '#';
     }
 
-    cout << "i\tsa[i]\tlcp[i]\tlen\tseqid\trank\tp_occ\tprev\tsuffix" << endl;
+    cout << "i\tsa[i]\tlcp[i]\tlen\tphrase\tid\tid_in\tid_out\tranks\tprevs\tsuffix" << endl;
     uint32_t n_special = dict.dwords + w + 1; // dwords*$, w*# and 1*\000
     for (size_t i = n_special; i < dict.dsize; i++) {
-        int32_t seqid = binsearch(sa[i], sa + 1, dict.dwords) + 1; // because seqid 0 is parse end symbol
-        size_t len = sa[seqid] - sa[i];
-        if (len <= w) continue;
-
-        uint64_t parse_occ = wg.C[seqid + 1] - wg.C[seqid];
+        row_t row = get_row(i, wg, dict, w, sa, lcp, ilist);
+        if (row.len <= (uint32_t)w) continue;
 
         string prev = "";
         vector<int32_t> ranks;
 
-        if (sa[i] == 0 || dict.d[sa[i] - 1] == '$') {
-            uint32_t start = wg.C[seqid];
-            for (uint32_t j = start; j < start + parse_occ; j++) {
+        if (row.is_phrase) {
+            uint32_t start = wg.C[row.id];
+            for (uint32_t j = start; j < start + row.id_in; j++) {
                 if (wg.din[j] == 1) {
                     uint32_t pos = wg.dout_select(wg.din_rank(j + 1));
                     do {
@@ -204,20 +201,26 @@ void print_table(tfm_index &wg, Dict &dict, size_t w, uint32_t *sa, int32_t *lcp
             prev += dict.d[sa[i] - 1];
 
             ranks.clear();
-            uint32_t start = wg.C[seqid];
-            for (uint32_t j = start; j < start + parse_occ; j++) {
+            uint32_t start = wg.C[row.id];
+            for (uint32_t j = start; j < start + row.id_in; j++) {
                 ranks.push_back(ilist[j - 1]);
             }
         }
 
+        // cout << "i\tsa[i]\tlcp[i]\tlen\tis_phrase\tid\tid_in\tid_out\tranks\tprevs\tsuffix" << endl;
         cout << i << "\t"
              << sa[i] << "\t"
              << lcp[i] << "\t"
-             << len << "\t"
-             << seqid << "\t[";
+             << row.len << "\t"
+             << row.is_phrase << "\t"
+             << row.id << "\t"
+             << row.id_in << "\t"
+             << row.id_out << "\t"
+             << "[";
+
         for (int32_t x: ranks) cout << x;
+
         cout << "]\t"
-             << parse_occ << "\t"
              << prev << "\t"
              << dict.d + sa[i] << endl;
     }
@@ -345,10 +348,7 @@ void compute_L(tfm_index &tfm, Dict dict, size_t w, uint32_t *sa, int32_t *lcp, 
     return;
 }
 
-void compute_degrees(
-    tfm_index &tfmp, Dict &dict, size_t w, uint32_t *sa, int32_t *lcp,
-    bit_vector &din, bit_vector &dout
-) {
+void compute_degrees(tfm_index &tfmp, Dict &dict, size_t w, uint32_t *sa, int32_t *lcp, bit_vector &din, bit_vector &dout) {
     uint8_t *d = dict.d;
     long dsize = dict.dsize;
     long dwords = dict.dwords;

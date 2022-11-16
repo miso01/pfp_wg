@@ -394,6 +394,8 @@ int_vector<> compute_L(size_t w, uint8_t *d, long dsize, uint64_t *end_to_phrase
                         uint8_t char_to_write = get_prev(w, d, end_to_phrase, act_phrase);
                         out.push_back(char_to_write);
                     } while (tfmp.dout[++pos] != 1);
+                } else {
+                    cout << "Ado ma pravdu\n";
                 }
             }
         } else {
