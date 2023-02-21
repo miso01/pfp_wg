@@ -40,7 +40,6 @@ extern "C" {
 
 using namespace std;
 using namespace sdsl;
-using namespace __gnu_cxx;
 
 // =============== algorithm limits ===================
 // maximum number of distinct words
@@ -298,10 +297,10 @@ struct SeqId {
         bwtpos += 1;
         return remaining > 0;
     }
-    bool operator<(const SeqId &a);
+
+    bool operator<(const SeqId &a) const { return *bwtpos > *(a.bwtpos); }
 };
 
-bool SeqId::operator<(const SeqId &a) { return *bwtpos > *(a.bwtpos); }
 
 inline uint8_t get_prev(int w, uint8_t *d, uint64_t *end, uint32_t seqid) {
     return d[end[seqid] - w - 1];
