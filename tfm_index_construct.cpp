@@ -578,26 +578,26 @@ Args parse_args(int argc, char **argv) {
 
     while ((c = getopt(argc, argv, "p:w:i:o:h")) != -1) {
         switch (c) {
-            case 'i':
-                arg.input.assign(optarg);
-                break;
-            case 'o':
-                arg.output.assign(optarg);
-                break;
-            case 'w':
-                sarg.assign(optarg);
-                arg.w = stoi(sarg);
-                break;
-            case 'p':
-                sarg.assign(optarg);
-                arg.p = stoi(sarg);
-                break;
-            case 'h':
-                print_help(argv);
-                exit(1);
-            case '?':
-                cout << "Unknown option. Use -h for help." << endl;
-                exit(1);
+        case 'i':
+            arg.input.assign(optarg);
+            break;
+        case 'o':
+            arg.output.assign(optarg);
+            break;
+        case 'w':
+            sarg.assign(optarg);
+            arg.w = stoi(sarg);
+            break;
+        case 'p':
+            sarg.assign(optarg);
+            arg.p = stoi(sarg);
+            break;
+        case 'h':
+            print_help(argv);
+            exit(1);
+        case '?':
+            cout << "Unknown option. Use -h for help." << endl;
+            exit(1);
         }
     }
     return arg;
@@ -727,28 +727,26 @@ tfm_index construct_tfm_index(vector<uint64_t> &bwt) {
     return tfm_index;
 }
 
-void print_wg(tfm_index &wg) {
-    for (uint i=0; i < wg.L.size(); i++)
-        cout << wg.L[i] << " ";
-    cout << "\n";
+void read_encoded_haplotypes(string filename, vector<uint64_t> &eh) {
+    ifstream file(filename);
+    if (!file.rdbuf()->is_open()) { // is_open does not work on igzstreams
+        perror(__func__);
+        throw new std::runtime_error("Cannot open input file " + filename);
+    }
 
-    cout << wg.dout << endl;
-    cout << wg.din << endl << endl;
+    int num;
+    while (file >> num) {
+        eh.push_back(num);
+    }
+    file.close();
 }
 
 int main(int argc, char **argv) {
     Args arg = parse_args(argc, argv);
-
-    vector<uint64_t> parse{};
-    Dict dict;
-    size_t size;
-    pf_parse(arg.input, arg.w, arg.p, parse, dict, &size);
-    vector<uint64_t> bwt = compute_bwt(parse);
+    vector<uint64_t> eh;
+    read_encoded_haplotypes(arg.input, eh);
+    vector<uint64_t> bwt = compute_bwt(eh);
     tfm_index tfm = construct_tfm_index(bwt);
-    print_wg(tfm);
-    tfm_index unparsed = unparse(tfm, dict, arg.w, size);
-
-    store_to_file(unparsed, arg.output);
-
+    store_to_file(tfm, arg.output);
     return 0;
 }
