@@ -734,10 +734,12 @@ void read_encoded_haplotypes(string filename, vector<uint64_t> &eh) {
         throw new std::runtime_error("Cannot open input file " + filename);
     }
 
-    int num;
-    while (file >> num) {
+    char ch;
+    while (file >> ch) {
+        uint64_t num = static_cast<uint64_t>(ch - '0');
         eh.push_back(num);
     }
+
     file.close();
 }
 
