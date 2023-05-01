@@ -743,12 +743,32 @@ void read_encoded_haplotypes(string filename, vector<uint64_t> &eh) {
     file.close();
 }
 
+void store_wg(const tfm_index::bit_vector_type &din, const tfm_index::bit_vector_type &dout, string filename) {
+    ofstream file(filename);
+    if (!file.rdbuf()->is_open()) { // is_open does not work on igzstreams
+        perror(__func__);
+        throw new std::runtime_error("Cannot open output file " + filename);
+    }
+
+    for (auto x : din) {
+        file << x;
+    }
+    file << endl;
+
+    for (auto x : dout) {
+        file << x;
+    }
+
+    file.close();
+}
+
 int main(int argc, char **argv) {
     Args arg = parse_args(argc, argv);
     vector<uint64_t> eh;
     read_encoded_haplotypes(arg.input, eh);
     vector<uint64_t> bwt = compute_bwt(eh);
     tfm_index tfm = construct_tfm_index(bwt);
-    store_to_file(tfm, arg.output);
+    //store_to_file(tfm, arg.output);
+    store_wg(tfm.din, tfm.dout, arg.output);
     return 0;
 }
